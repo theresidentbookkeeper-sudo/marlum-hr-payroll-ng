@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>Marlum HR & Payroll</title>
 <style>
 :root{--bg:#f7f5f3;--card:#fffdfc;--ink:#24302a;--muted:#6f7973;--line:#e5e1dd;--accent:#8fa99b;--accent2:#d9e5de;--good:#3f735b;--warn:#9a6b32;--bad:#9d514b}
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+*{box-sizing:border-box}body{margin:0;font-family:'Inter',Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:.2px}
 header{background:linear-gradient(90deg,#9db5a8,#d8c7c3);color:#24302a;padding:14px 22px;display:flex;justify-content:space-between;align-items:center}
 header h1{margin:0;font-size:19px}header span{font-size:11px;opacity:.8}
 .layout{display:flex;min-height:calc(100vh - 65px)}nav{width:235px;background:#fffdfc;border-right:1px solid var(--line);padding:15px}
@@ -20,12 +23,8 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.form{grid-template-columns:1fr 1fr}nav{width:190px}}
 @media(max-width:650px){.layout{display:block}nav{width:100%;display:flex;overflow:auto}nav button{min-width:130px}main{padding:15px}.grid,.form{grid-template-columns:1fr}}
 </style></head><body><div id="appError" style="display:none;margin:16px;padding:14px;border-radius:8px;background:#fdeaea;color:#7b2222;font-family:Arial,sans-serif"><b>Application error:</b> <span id="appErrorText"></span></div>
-<header><span id="marlumHeaderBrand">MARLUM NIGERIA LTD</span><span id="today"></span><span id="deviceClock" class="device-clock"></span><div id="marlumAuthBox" class="auth-user" style="display:none"><span class="auth-role" id="marlumAuthRole"></span><span id="marlumAuthName"></span><button class="auth-signout" type="button" onclick="if(typeof marlumSignOutV24==='function'){marlumSignOutV24();}else{try{window.__marlumDB.currentUser=null;}catch(e){}location.reload();}">Sign out</button></div></header>
+<header><span id="marlumHeaderBrand">MARLUM NIGERIA LTD</span><span id="today"></span><span id="deviceClock" class="device-clock"></span><span id="syncStatus" class="sync-status" style="margin-left:14px;font-size:12px;padding:3px 10px;border-radius:12px;display:none;cursor:default"></span><div id="marlumAuthBox" class="auth-user" style="display:none"><span class="auth-role" id="marlumAuthRole"></span><span id="marlumAuthName"></span><button class="auth-signout" type="button" onclick="if(typeof marlumSignOutV24==='function'){marlumSignOutV24();}else{try{window.__marlumDB.currentUser=null;}catch(e){}location.reload();}">Sign out</button></div></header>
 <div class="layout"><nav>
-<button class="active" onclick="showPage('dashboard',this)">Dashboard</button><button onclick="showPage('employees',this)">Employees</button>
-<button onclick="showPage('attendance',this)">Attendance</button><button onclick="showPage('leave',this)">Leave</button><button onclick="showPage('payroll',this)">Payroll</button>
-<button onclick="showPage('payments',this)">Bank Payments</button><button onclick="showPage('payslips',this)">Payslips</button><button onclick="showPage('hrrecords',this)">HR Records</button><button onclick="showPage('lifecycle',this)">HR Actions</button><button onclick="showPage('compensation',this)">Compensation</button><button onclick="showPage('ess',this)">Employee Portal</button><button onclick="showPage('security',this)">Users & Security</button><button onclick="showPage('paymentflow',this)">Payroll & Payments</button><button onclick="showPage('paycycles',this)">Payroll Cycles</button><button onclick="showPage('attendance2',this)">Attendance & Time</button><button onclick="showPage('reports',this)">Reports</button>
-<button onclick="showPage('audit',this)">Audit Log</button><button onclick="showPage('settings',this)">Settings</button>
 </nav><main>
 <section id="dashboard" class="page active"><h2>Dashboard</h2><div class="grid">
 <div class="card"><div class="label">Active Employees</div><div class="metric" id="mEmployees">0</div></div>
@@ -36,44 +35,6 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 
 <section id="employees" class="page"><h2>Employees</h2><div class="toolbar"><button class="btn primary" onclick="openEmployee()">+ Add Employee</button><button class="btn secondary" onclick="exportEmployees()">Export CSV</button><input id="employeeSearch" placeholder="Search employee, ID, department..." oninput="renderEmployees()" style="padding:10px;border:1px solid #d0cbc7;border-radius:7px;min-width:280px"></div>
 <table><thead><tr><th>ID</th><th>Employee</th><th>Department</th><th>Position</th><th>Gross</th><th>Bank</th><th>Status</th><th>Action</th></tr></thead><tbody id="employeeRows"></tbody></table></section>
-
-<section id="leave" class="page"><h2>Leave Management</h2><div class="grid">
-<div class="card"><div class="label">Pending Requests</div><div class="metric" id="leavePending">0</div></div>
-<div class="card"><div class="label">Approved This Year</div><div class="metric" id="leaveApproved">0</div></div>
-<div class="card"><div class="label">On Leave Today</div><div class="metric" id="leaveToday">0</div></div>
-</div>
-<div class="toolbar"><button class="btn primary" onclick="openLeaveRequest()">+ Leave Request</button><button class="btn secondary" onclick="openLeaveBalances()">Leave Balances</button></div>
-<table><thead><tr><th>Employee</th><th>Type</th><th>Start</th><th>End</th><th>Days</th><th>Status</th><th>Action</th></tr></thead><tbody id="leaveRows"></tbody></table></section>
-
-<section id="payroll" class="page"><h2>Payroll</h2><div class="toolbar"><button class="btn primary" onclick="createPayroll()">Calculate / Refresh Payroll</button>
-<button class="btn secondary" onclick="openPayrollAdjustments()">Payroll Adjustments</button>
-<button class="btn success" onclick="approvePayroll()">Approve Payroll</button><button class="btn success" onclick="lockPayroll()">Lock Payroll</button><button class="btn secondary" onclick="openPayrollHistory()">Payroll History</button></div>
-<div class="notice">Payroll is calculated from the <b>monthly</b> salary schedule. The salary structure is <b>Basic + Housing + Transport + Other</b>. PAYE, Pension and NSITF are excluded for now.</div>
-<div class="card"><h3 id="payrollTitle"></h3><table><thead><tr><th>Employee</th><th>Basic</th><th>Housing</th><th>Transport</th><th>Other</th><th>Bonus</th><th>Deductions / Loan</th><th>Net Pay</th></tr></thead><tbody id="payrollRows"></tbody><tfoot id="payrollFoot"></tfoot></table></div></section>
-
-<section id="payments" class="page"><h2>Bank Payments</h2><div class="card"><h3>Payment Batch</h3><div id="paymentSummary"></div><div class="toolbar">
-<button class="btn primary" onclick="prepareBatch()">Prepare Payment Batch</button><button class="btn success" onclick="authorizeBatch()">Authorize & Simulate Bank Submission</button></div></div>
-<div class="card" style="margin-top:15px"><h3>Payment History</h3><table><thead><tr><th>Employee</th><th>Amount</th><th>Bank</th><th>Account</th><th>Status</th><th>Reference</th></tr></thead><tbody id="paymentRows"></tbody></table></div></section>
-
-
-<section id="attendance" class="page">
-<h2>Attendance</h2>
-<div class="grid">
-  <div class="card"><div class="label">Active Employees</div><div class="metric" id="attEmployees">0</div></div>
-  <div class="card"><div class="label">Present Today</div><div class="metric" id="attPresent">0</div></div>
-  <div class="card"><div class="label">Absent Today</div><div class="metric" id="attAbsent">0</div></div>
-  <div class="card"><div class="label">Attendance Rate</div><div class="metric" id="attRate">0%</div></div>
-</div>
-<div class="card">
-  <div class="toolbar">
-    <button class="btn primary" onclick="openAttendanceEntry()">Record Attendance</button>
-    <button class="btn secondary" onclick="openAttendanceHistory()">Attendance History</button>
-    <button class="btn secondary" onclick="markAllPresent()">Mark All Present</button>
-  </div>
-  <div id="attendanceToday"></div>
-</div>
-</section>
-
 
 <section id="payslips" class="page">
 <h2>Payslips</h2>
@@ -157,7 +118,6 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 <h2>Employee Self-Service Portal</h2>
 <div class="grid">
   <div class="card"><div class="label">Portal Users</div><div class="metric" id="essUsers">0</div></div>
-  <div class="card"><div class="label">Leave Requests</div><div class="metric" id="essLeaveRequests">0</div></div>
   <div class="card"><div class="label">Payslips Available</div><div class="metric" id="essPayslips">0</div></div>
   <div class="card"><div class="label">Pending Requests</div><div class="metric" id="essPending">0</div></div>
 </div>
@@ -166,7 +126,7 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
     <button class="btn primary" onclick="openEmployeePortal()">Open Employee Portal</button>
     <button class="btn secondary" onclick="openESSUserManager()">Portal User Manager</button>
   </div>
-  <p class="label">The portal is designed for employee-level access. Employees can see only their own HR information, payslips, attendance and leave records.</p>
+  <p class="label">The portal is designed for employee-level access. Employees can see only their own HR information, payslips and attendance records.</p>
 </div>
 <div class="card">
   <h3>Portal Access Register</h3>
@@ -191,7 +151,7 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 </div>
 <div class="card">
   <div class="toolbar">
-    <button class="btn primary" onclick="openSystemUser()">+ Create User</button>
+    <button class="btn primary" onclick="openCreateRealUser()">+ Create User</button>
     <button class="btn secondary" onclick="openRoleMatrix()">Role & Permission Matrix</button>
     <button class="btn secondary" onclick="openAuditLog()">Audit Log</button>
   </div>
@@ -284,9 +244,7 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 </div>
 <div class="card" style="margin-top:15px">
   <div class="toolbar">
-    <button class="btn secondary" onclick="exportPayrollCSV()">Export Payroll CSV</button>
-    <button class="btn secondary" onclick="openDepartmentReport()">Department Summary</button>
-    <button class="btn secondary" onclick="openEmployeePayrollHistory()">Employee Payroll History</button>
+    <button class="btn primary" onclick="openGenerateReport()">Generate Report</button>
   </div>
   <h3>Management Summary</h3><div id="reportSummary"></div>
 </div>
@@ -415,10 +373,11 @@ ${history.map(x=>`<tr><td>${x.effective}</td><td>${money(x.basic)}</td><td>${mon
 <div class="toolbar"><button class="btn primary" onclick="openEmployee('${esc(e.id)}')">Edit Employee</button><button class="btn secondary" onclick="closeModal()">Close</button></div>`);
 }
 
-function deleteEmployee(id){if(!confirm('Delete this employee? This is intended for test/demo data.'))return;db.employees=db.employees.filter(x=>x.id!==id);log('Employee deleted',id);save();render()}
-function openLeave(){let opts=db.employees.filter(e=>e.status==='Active').map(e=>`<option value="${esc(e.id)}">${esc(e.name)} (${esc(e.id)})</option>`).join('');openModal(`<h3>Leave Request</h3><div class="form"><label>Employee<select id="l_emp">${opts}</select></label><label>Leave Type<select id="l_type"><option>Annual Leave</option><option>Sick Leave</option><option>Maternity/Paternity</option><option>Unpaid Leave</option><option>Other</option></select></label><label>Start Date<input id="l_start" type="date"></label><label>End Date<input id="l_end" type="date"></label></div><div class="toolbar"><button class="btn primary" onclick="saveLeave()">Submit Request</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`)}
-function saveLeave(){let s=document.getElementById('l_start').value,e=document.getElementById('l_end').value;if(!s||!e||new Date(e)<new Date(s)){alert('Enter valid dates.');return}let days=Math.floor((new Date(e)-new Date(s))/86400000)+1;db.leave.unshift({id:Date.now(),emp:document.getElementById('l_emp').value,type:document.getElementById('l_type').value,start:s,end:e,days,status:'Pending'});log('Leave request submitted',`${document.getElementById('l_emp').value} — ${days} days`);save();closeModal();render()}
-function leaveAction(id,status){let x=db.leave.find(l=>l.id===id);if(x){x.status=status;log('Leave status changed',`${x.emp} — ${status}`);save();render()}}
+function deleteEmployee(id){
+  if(!normalizeRoles(activeSystemUser()).includes('Super Admin')){alert('Only a Super Admin can permanently delete an employee record. If this employee has left the company, use the Inactive/Terminated status in HR instead — deletion is only for correcting a genuine data-entry mistake.');return}
+  if(!confirm('This permanently removes the employee record from the database — there is no undo. Only use this to correct a genuine mistake (e.g. the wrong person was entered). If the employee has actually left the company, cancel this and set their status to Inactive/Terminated in HR instead.'))return;
+  db.employees=db.employees.filter(x=>x.id!==id);log('Employee deleted',id);save();render()
+}
 function createPayroll(){
 let active=db.employees.filter(e=>e.status==='Active');
 let month=new Date().toISOString().slice(0,7);
@@ -471,7 +430,7 @@ let active=db.employees.filter(e=>e.status==='Active');
 let month=new Date().toISOString().slice(0,7);
 openModal(`<h3>Payroll Adjustments — ${new Date(month+'-01T00:00:00').toLocaleString('en-NG',{month:'long',year:'numeric'})}</h3>
 <div class="grid">
-<label>Employee<select id="adjEmp">${active.map(e=>`<option value="${e.id}">${esc(e.name)} (${esc(e.id)})</option>`).join('')}</select></label>
+<label>Employee<input id="adjEmpSearch" placeholder="Type a name…" autocomplete="off" oninput="filterAdjEmpOptions(this.value)"><select id="adjEmp" size="6">${active.map(e=>`<option value="${e.id}">${esc(e.name)} (${esc(e.id)})</option>`).join('')}</select></label>
 <label>Type<select id="adjType"><option>Bonus</option><option>Deduction</option><option>Loan/Advance Repayment</option></select></label>
 <label>Amount<input id="adjAmount" type="number" min="0" step="0.01"></label>
 <label>Description<input id="adjDesc" placeholder="e.g. Performance bonus"></label>
@@ -481,6 +440,12 @@ openModal(`<h3>Payroll Adjustments — ${new Date(month+'-01T00:00:00').toLocale
 <table><tr><th>Employee</th><th>Type</th><th>Amount</th><th>Description</th><th>Status</th><th>Action</th></tr>
 ${(db.payrollAdjustments||[]).filter(a=>a.month===month).map(a=>`<tr><td>${esc(a.name)}</td><td>${esc(a.type)}</td><td>${money(a.amount)}</td><td>${esc(a.description||'')}</td><td>${a.status}</td><td>${a.status!=='Cancelled'?`<button class="btn danger" onclick="cancelPayrollAdjustment('${a.id}')">Cancel</button>`:'—'}</td></tr>`).join('')||'<tr><td colspan="6">No adjustments recorded.</td></tr>'}</table>`);
 }
+window.filterAdjEmpOptions=function(q){
+  const sel=document.getElementById('adjEmp');if(!sel)return;
+  q=(q||'').trim().toLowerCase();
+  const active=db.employees.filter(e=>e.status==='Active'&&(!q||e.name.toLowerCase().includes(q)||String(e.id).includes(q)));
+  sel.innerHTML=active.slice(0,50).map(e=>`<option value="${esc(e.id)}">${esc(e.name)} (${esc(e.id)})</option>`).join('')||'<option disabled>No match</option>';
+};
 function addPayrollAdjustment(){
 let emp=document.getElementById('adjEmp').value,type=document.getElementById('adjType').value,amount=Number(document.getElementById('adjAmount').value||0),description=document.getElementById('adjDesc').value;
 if(!amount||amount<0){alert('Enter a valid amount.');return}
@@ -496,17 +461,6 @@ a.status='Cancelled';log('Payroll adjustment cancelled',`${a.name} — ${a.type}
 db.payroll=null;save();closeModal();openPayrollAdjustments();
 }
 
-function prepareBatch(){
-if(!db.payroll||db.payroll.status!=='Locked'){alert('Payroll must be locked before preparing the payment batch.');return}
-if(db.payments.some(p=>p.payroll===db.payroll.month&&p.status!=='Failed')){alert('A payment batch already exists for this payroll.');return}
-db.payments.push(...db.payroll.items.map(x=>{
- let e=db.employees.find(a=>a.id===x.id);
- return {payroll:db.payroll.month,emp:x.id,name:x.name,amount:x.netPay,bank:e?.bank||'',account:e?.account||'',status:'Pending Authorization',ref:''}
-}));
-log('Monthly salary payment batch prepared',`${db.payroll.month} — ${db.payroll.items.length} payments`);
-save();render();
-}
-function authorizeBatch(){let rows=db.payments.filter(p=>p.payroll===db.payroll?.month&&p.status==='Pending Authorization');if(!rows.length){alert('No pending payment batch found.');return}if(!confirm(`Authorize ${rows.length} salary payments? This demo simulates bank responses.`))return;rows.forEach(p=>{p.status=(p.account&&p.account.length>=10)?'Successful':'Failed';p.ref=p.status==='Successful'?'ML-'+Date.now()+'-'+p.emp:'FAILED-BANK-DETAILS'});db.payroll.status='Paid';log('Payment batch authorized/submitted',`${rows.length} payments simulated`);save();render()}
 function todayISO(){return new Date().toISOString().slice(0,10)}
 function daysBetween(a,b){
   let s=new Date(a+'T00:00:00'),e=new Date(b+'T00:00:00');
@@ -558,50 +512,6 @@ function openAttendanceHistory(){
   <table><tr><th>Date</th><th>Employee</th><th>Time In</th><th>Time Out</th><th>Hours</th><th>OT Hours</th><th>Source</th></tr>
   ${rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.name)}</td><td>${r.timeIn||'—'}</td><td>${r.timeOut||'—'}</td><td>${Number(r.hours||0).toFixed(2)}</td><td>${Number(r.overtimeHours||0).toFixed(2)}</td><td>${esc(r.source||'Time Tracker')}</td></tr>`).join('')||'<tr><td colspan="7">No time sheet records yet.</td></tr>'}</table>
   <button class="btn secondary" onclick="closeModal()">Close</button>`);
-}
-function openLeaveRequest(){
-  let active=db.employees.filter(e=>e.status==='Active');
-  openModal(`<h3>New Leave Request</h3><div class="grid">
-  <label>Employee<select id="lvEmp">${active.map(e=>`<option value="${e.id}">${esc(e.name)} (${esc(e.id)})</option>`).join('')}</select></label>
-  <label>Leave Type<select id="lvType"><option>Annual Leave</option><option>Sick Leave</option><option>Maternity Leave</option><option>Compassionate Leave</option><option>Study Leave</option><option>Unpaid Leave</option></select></label>
-  <label>Start Date<input id="lvStart" type="date" value="${todayISO()}"></label>
-  <label>End Date<input id="lvEnd" type="date" value="${todayISO()}"></label>
-  <label>Reason<input id="lvReason" placeholder="Optional"></label></div>
-  <div class="toolbar"><button class="btn primary" onclick="saveLeaveRequest()">Submit Request</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`);
-}
-function saveLeaveRequest(){
-  let emp=document.getElementById('lvEmp').value,start=document.getElementById('lvStart').value,end=document.getElementById('lvEnd').value;
-  if(!start||!end||daysBetween(start,end)<=0){alert('Enter a valid leave period.');return}
-  let e=db.employees.find(x=>x.id===emp),type=document.getElementById('lvType').value,reason=document.getElementById('lvReason').value;
-  db.leaveRequests=db.leaveRequests||[];
-  db.leaveRequests.push({id:'LV-'+Date.now(),emp,name:e.name,type,start,end,days:daysBetween(start,end),reason,status:'Pending',createdAt:new Date().toISOString()});
-  log('Leave request submitted',`${e.name} — ${type} — ${start} to ${end}`);
-  save();closeModal();render();
-}
-function leaveAction(id,status){
-  let l=(db.leaveRequests||[]).find(x=>x.id===String(id)||x.id===id);if(!l)return;
-  const u=activeSystemUser(),roles=normalizeRoles(u);
-  if(!roles.some(r=>['HR Manager','Approver','Management','Super Admin'].includes(r))){alert('Only HR Manager or the MD/Approver can approve or reject leave requests.');return}
-  if(status==='Approved'){
-    let key=l.emp;
-    db.leaveBalances=db.leaveBalances||{};
-    db.leaveBalances[key]=db.leaveBalances[key]||{Annual:15,Sick:10,Maternity:90,Compassionate:5,Study:5,Unpaid:999};
-    let map={'Annual Leave':'Annual','Sick Leave':'Sick','Maternity Leave':'Maternity','Compassionate Leave':'Compassionate','Study Leave':'Study','Unpaid Leave':'Unpaid'};
-    let k=map[l.type]||'Annual';
-    if((db.leaveBalances[key][k]??0)<l.days){alert('Insufficient leave balance.');return}
-    db.leaveBalances[key][k]-=l.days;
-  }
-  l.status=status;l.actionDate=new Date().toISOString();l.actionBy=u.username;
-  log(`Leave ${status.toLowerCase()}`,`${l.name} — ${l.type} — ${l.days} day(s)`);
-  save();render();
-}
-function openLeaveBalances(){
-  let active=db.employees.filter(e=>e.status==='Active');
-  openModal(`<h3>Leave Balances</h3><table><tr><th>Employee</th><th>Annual</th><th>Sick</th><th>Maternity</th><th>Compassionate</th><th>Study</th></tr>
-  ${active.map(e=>{
-    let b=(db.leaveBalances||{})[e.id]||{Annual:15,Sick:10,Maternity:90,Compassionate:5,Study:5};
-    return `<tr><td>${esc(e.name)}</td><td>${b.Annual}</td><td>${b.Sick}</td><td>${b.Maternity}</td><td>${b.Compassionate}</td><td>${b.Study}</td></tr>`
-  }).join('')}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
 }
 
 function currentPayrollItems(){
@@ -974,13 +884,19 @@ function approveHRAction(id){
   let a=hrActions().find(x=>x.id===id);if(!a)return;
   let e=db.employees.find(x=>x.id===a.emp);if(!e)return;
   const u=activeSystemUser(),roles=normalizeRoles(u);
-  if(!roles.some(r=>['HR Manager','Approver','Management','Super Admin'].includes(r))){alert('Only HR Manager or the MD/Approver can approve HR actions.');return}
+  if(!roles.some(r=>['HR Manager','MD / Approver','Management','Super Admin'].includes(r))){alert('Only HR Manager or the MD/Approver can approve HR actions.');return}
   if(a.createdBy&&a.createdBy===u.username&&!roles.includes('Super Admin')){alert('Segregation of duties: you cannot approve an HR action you submitted yourself.');return}
   a.status='Approved';a.approvedBy=u.username;a.approvedAt=new Date().toISOString();
   // Apply non-sensitive administrative changes immediately; salary changes become effective-dated records.
   if((a.type==='Transfer'||a.type==='Department Change')&&a.department)e.dept=a.department;
   if(['Resignation','Termination'].includes(a.type)){
-    e.status=a.type==='Termination'?'Terminated':'Resigned';
+    // Must set employmentStatus (not just status) — migrateEmployee runs on every render and treats
+    // employmentStatus as the source of truth, syncing status FROM it. Setting only status here was
+    // getting silently overwritten back to 'Active' the moment render() ran at the end of this very
+    // function, meaning an approved termination never actually took effect: the employee kept
+    // showing as Active and kept being included in payroll cycles.
+    e.employmentStatus=a.type==='Termination'?'Terminated':'Resigned';
+    e.status=e.employmentStatus;
     e.exitDate=a.effectiveDate;
   }
   if(a.type==='Confirmation')e.employmentConfirmedDate=a.effectiveDate;
@@ -990,7 +906,7 @@ function approveHRAction(id){
 function rejectHRAction(id){
   let a=hrActions().find(x=>x.id===id);if(!a)return;
   const u=activeSystemUser(),roles=normalizeRoles(u);
-  if(!roles.some(r=>['HR Manager','Approver','Management','Super Admin'].includes(r))){alert('Only HR Manager or the MD/Approver can reject HR actions.');return}
+  if(!roles.some(r=>['HR Manager','MD / Approver','Management','Super Admin'].includes(r))){alert('Only HR Manager or the MD/Approver can reject HR actions.');return}
   if(a.createdBy&&a.createdBy===u.username&&!roles.includes('Super Admin')){alert('Segregation of duties: you cannot reject an HR action you submitted yourself.');return}
   a.status='Rejected';a.rejectedBy=u.username;a.rejectedAt=new Date().toISOString();save();log('HR action rejected',`${a.name} — ${a.type}`);render();
 }
@@ -1048,14 +964,14 @@ function saveSalaryChange(){
 function approveSalaryChange(id){
   let a=salaryChanges().find(x=>x.id===id);if(!a)return;
   const u=activeSystemUser(),roles=normalizeRoles(u);
-  if(!roles.some(r=>['Approver','Management','Super Admin'].includes(r))){alert('Only the MD / authorized Approver can approve a salary change.');return}
+  if(!roles.some(r=>['MD / Approver','Management','Super Admin'].includes(r))){alert('Only the MD / authorized Approver can approve a salary change.');return}
   if(a.createdBy&&a.createdBy===u.username&&!roles.includes('Super Admin')){alert('Segregation of duties: you cannot approve a salary change you submitted yourself.');return}
   a.status='Approved';a.approvedBy=u.username;a.approvedAt=new Date().toISOString();save();log('Salary change approved',`${a.name} — effective ${a.effectiveDate}`);render()
 }
 function rejectSalaryChange(id){
   let a=salaryChanges().find(x=>x.id===id);if(!a)return;
   const u=activeSystemUser(),roles=normalizeRoles(u);
-  if(!roles.some(r=>['Approver','Management','Super Admin'].includes(r))){alert('Only the MD / authorized Approver can reject a salary change.');return}
+  if(!roles.some(r=>['MD / Approver','Management','Super Admin'].includes(r))){alert('Only the MD / authorized Approver can reject a salary change.');return}
   if(a.createdBy&&a.createdBy===u.username&&!roles.includes('Super Admin')){alert('Segregation of duties: you cannot reject a salary change you submitted yourself.');return}
   a.status='Rejected';a.rejectedBy=u.username;a.rejectedAt=new Date().toISOString();save();log('Salary change rejected',a.name);render()
 }
@@ -1097,7 +1013,7 @@ function showEmployeePortal(id){
   if(!e){alert('Employee not found.');return}
   u.lastAccess=new Date().toISOString();save();closeModal();
   let salary=salaryForEmployeeAt(id,new Date().toISOString().slice(0,10));
-  let leave=(db.leaves||[]).filter(x=>x.emp===id),docs=hrDocsFor(id),att=(db.attendance||[]).filter(x=>x.emp===id);
+  let docs=hrDocsFor(id),att=(db.attendance||[]).filter(x=>x.emp===id);
   let pays=db.payroll?.items?.filter(x=>x.id===id)||[];
   openModal(`<div class="portal">
     <div style="border-bottom:2px solid #9db5a8;padding-bottom:10px;margin-bottom:15px">
@@ -1105,41 +1021,17 @@ function showEmployeePortal(id){
     </div>
     <div class="grid">
       <div class="card"><div class="label">Current Monthly Gross</div><div class="metric">${money(salaryGross(salary))}</div></div>
-      <div class="card"><div class="label">Leave Records</div><div class="metric">${leave.length}</div></div>
       <div class="card"><div class="label">Documents</div><div class="metric">${docs.length}</div></div>
       <div class="card"><div class="label">Attendance Records</div><div class="metric">${att.length}</div></div>
     </div>
     <h3>My Payslips</h3>
     <table><tr><th>Period</th><th>Gross</th><th>Net Pay</th><th>Action</th></tr>
     ${pays.map(x=>`<tr><td>${esc(db.payroll.displayMonth||db.payroll.month)}</td><td>${money(x.gross)}</td><td>${money(x.netPay)}</td><td><button class="btn secondary" onclick="showPayslip('${esc(id)}')">View</button></td></tr>`).join('')||'<tr><td colspan="4">No payslips currently available.</td></tr>'}</table>
-    <h3>My Leave</h3>
-    <table><tr><th>Type</th><th>Start</th><th>End</th><th>Days</th><th>Status</th></tr>
-    ${leave.map(x=>`<tr><td>${esc(x.type||x.leaveType||'—')}</td><td>${esc(x.start||'—')}</td><td>${esc(x.end||'—')}</td><td>${esc(String(x.days||'—'))}</td><td>${esc(x.status||'—')}</td></tr>`).join('')||'<tr><td colspan="5">No leave records.</td></tr>'}</table>
     <h3>My HR Documents</h3>
     <table><tr><th>Type</th><th>Reference</th><th>Expiry / Review</th><th>Status</th></tr>
     ${docs.map(x=>`<tr><td>${esc(x.type)}</td><td>${esc(x.ref||'—')}</td><td>${esc(x.expiry||'—')}</td><td>${esc(x.status)}</td></tr>`).join('')||'<tr><td colspan="4">No document records.</td></tr>'}</table>
-    <div class="toolbar"><button class="btn primary" onclick="openEmployeeLeaveRequest('${esc(id)}')">Apply for Leave</button><button class="btn secondary" onclick="closeModal()">Close Portal</button></div>
+    <div class="toolbar"><button class="btn secondary" onclick="closeModal()">Close Portal</button></div>
   </div>`);
-}
-function openEmployeeLeaveRequest(id){
-  closeModal();
-  let e=db.employees.find(x=>x.id===id);
-  openModal(`<h3>Leave Request — ${esc(e.name)}</h3>
-  <div class="grid">
-    <label>Leave Type<select id="essLeaveType">${['Annual','Sick','Maternity','Compassionate','Study','Unpaid'].map(x=>`<option>${x}</option>`).join('')}</select></label>
-    <label>Start Date<input id="essLeaveStart" type="date" value="${todayISO()}"></label>
-    <label>End Date<input id="essLeaveEnd" type="date" value="${todayISO()}"></label>
-    <label>Reason<input id="essLeaveReason"></label>
-  </div>
-  <div class="toolbar"><button class="btn primary" onclick="submitESSLeave('${esc(id)}')">Submit Leave Request</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`);
-}
-function submitESSLeave(id){
-  let start=document.getElementById('essLeaveStart').value,end=document.getElementById('essLeaveEnd').value;
-  if(!start||!end||end<start){alert('Please enter a valid leave period.');return}
-  let e=db.employees.find(x=>x.id===id),days=Math.floor((new Date(end)-new Date(start))/86400000)+1;
-  db.leaves=db.leaves||[];
-  db.leaves.push({id:'ESS-LV-'+Date.now(),emp:id,name:e.name,type:document.getElementById('essLeaveType').value,start,end,days,reason:document.getElementById('essLeaveReason').value,status:'Pending',source:'Employee Portal',createdAt:new Date().toISOString()});
-  log('Employee leave request submitted',`${e.name} — ${start} to ${end}`);save();closeModal();render();
 }
 function openESSUserManager(){
   let active=db.employees.filter(e=>e.status==='Active');
@@ -1153,21 +1045,129 @@ function toggleESSUser(id){
 const rolePermissions={
   'Super Admin':['dashboard','employees','hr','compensation','payroll','attendance','leave','payslips','payments','reports','security','ess'],
   'HR Manager':['dashboard','employees','hr','attendance','leave','payslips','reports'],
-  'Accountant':['dashboard','employees','compensation','payroll','payslips','payments','reports'],
+  'Accountant':['dashboard','employees','compensation','payroll','payslips','payments','reports','attendance'],
   'Financial Controller':['dashboard','compensation','payroll','payslips','payments','reports'],
-  'Approver':['dashboard','payroll','compensation','hr','payments','reports'],
+  'MD / Approver':['dashboard','payroll','compensation','hr','payments','reports'],
   'Employee':['ess'],
   'Management':['dashboard','reports']
 };
 const approvalPermissions={
   'Payroll Preparation':['Accountant','Super Admin'],
   'Payroll Review':['Financial Controller','Super Admin'],
-  'Payroll Approval':['Approver','Management','Super Admin'],
+  'Payroll Approval':['MD / Approver','Management','Super Admin'],
   'Payment Processing':['Financial Controller','Super Admin'],
-  'Payment Approval':['Approver','Management','Super Admin']
+  'Payment Approval':['MD / Approver','Management','Super Admin']
 };
 function normalizeRoles(u){return Array.isArray(u.roles)?u.roles:(u.role?[u.role]:[])}
-function systemUsers(){db.systemUsers=db.systemUsers||[];return db.systemUsers}
+// REAL user management, replacing the removed client-side "prototype" (which stored a fake,
+// weakly-scrambled password in the app's own JSONB data and never touched actual Supabase Auth —
+// anyone "created" there could never have actually signed in). This calls the admin-users Edge
+// Function, which does the privileged work server-side with the service role key and independently
+// re-checks the caller is a Super Admin before doing anything — the button below being hidden from
+// non-admins is a UI convenience, not the real security boundary.
+const REAL_ROLES=[
+  {code:'super_admin',name:'Super Admin'},
+  {code:'md_approver',name:'MD / Approver'},
+  {code:'financial_controller',name:'Financial Controller'},
+  {code:'accountant',name:'Accountant'},
+  {code:'hr',name:'HR Manager'},
+  {code:'employee',name:'Employee'},
+];
+let realUsersCache=null,realUsersLoading=false,realUsersError=null;
+async function loadRealUsers(){
+  if(!window.marlumSupabase){realUsersError='Not connected yet — try again in a moment.';render();return}
+  realUsersLoading=true;realUsersError=null;render();
+  try{
+    const {data,error}=await window.marlumSupabase.functions.invoke('admin-users',{body:{action:'list'}});
+    if(error)throw error;
+    if(data&&data.error)throw new Error(data.error);
+    realUsersCache=data.users||[];
+  }catch(e){
+    realUsersError=e.message||String(e);
+    if(realUsersCache===null)realUsersCache=[];
+  }finally{
+    realUsersLoading=false;render();
+  }
+}
+function openCreateRealUser(){
+  openModal(`<h3>Create User</h3><div class="grid">
+  <label>Email Address<input id="ruEmail" type="email" placeholder="name@marlum.com"></label>
+  <label>Temporary Password<input id="ruPassword" type="password" placeholder="At least 8 characters"></label>
+  <label>Roles (select one or more)<div class="checkbox-list">${REAL_ROLES.map(r=>`<label><input type="checkbox" class="ruRole" value="${r.code}"> ${r.name}</label>`).join('')}</div></label>
+  </div>
+  <p class="label">This creates a real account the person can actually sign in with immediately — their email is pre-confirmed, no separate verification step needed. Share the temporary password with them directly; ask them to change it after first sign-in.</p>
+  <div class="toolbar"><button class="btn primary" id="ruCreateBtn" onclick="saveCreateRealUser()">Create User</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>
+  <p class="label" id="ruCreateStatus"></p>`);
+}
+async function saveCreateRealUser(){
+  const email=document.getElementById('ruEmail').value.trim();
+  const password=document.getElementById('ruPassword').value;
+  const roleCodes=[...document.querySelectorAll('.ruRole:checked')].map(x=>x.value);
+  const statusEl=document.getElementById('ruCreateStatus'),btn=document.getElementById('ruCreateBtn');
+  if(!email||!email.includes('@')){statusEl.textContent='Enter a valid email address.';statusEl.style.color='#a33c34';return}
+  if(password.length<8){statusEl.textContent='Password must be at least 8 characters.';statusEl.style.color='#a33c34';return}
+  if(!roleCodes.length){statusEl.textContent='Select at least one role.';statusEl.style.color='#a33c34';return}
+  btn.disabled=true;statusEl.style.color='#496057';statusEl.textContent='Creating…';
+  try{
+    const {data,error}=await window.marlumSupabase.functions.invoke('admin-users',{body:{action:'create',email,password,roleCodes}});
+    if(error)throw error;
+    if(data&&data.error)throw new Error(data.error);
+    log('User created',`${email} — ${roleCodes.join(', ')}`);save();
+    closeModal();
+    await loadRealUsers();
+  }catch(e){
+    btn.disabled=false;statusEl.style.color='#a33c34';statusEl.textContent=e.message||String(e);
+  }
+}
+function openChangeRealUserRoles(userId,email,currentRoleNames){
+  const currentCodes=REAL_ROLES.filter(r=>currentRoleNames.includes(r.name)).map(r=>r.code);
+  openModal(`<h3>Change Roles — ${esc(email)}</h3>
+  <div class="checkbox-list">${REAL_ROLES.map(r=>`<label><input type="checkbox" class="ruEditRole" value="${r.code}" ${currentCodes.includes(r.code)?'checked':''}> ${r.name}</label>`).join('')}</div>
+  <div class="toolbar"><button class="btn primary" id="ruSaveRolesBtn" onclick="saveRealUserRoles('${esc(userId)}')">Save Roles</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>
+  <p class="label" id="ruRolesStatus"></p>`);
+}
+async function saveRealUserRoles(userId){
+  const roleCodes=[...document.querySelectorAll('.ruEditRole:checked')].map(x=>x.value);
+  const statusEl=document.getElementById('ruRolesStatus'),btn=document.getElementById('ruSaveRolesBtn');
+  if(!roleCodes.length){statusEl.textContent='Select at least one role.';statusEl.style.color='#a33c34';return}
+  btn.disabled=true;statusEl.style.color='#496057';statusEl.textContent='Saving…';
+  try{
+    const {data,error}=await window.marlumSupabase.functions.invoke('admin-users',{body:{action:'setRoles',userId,roleCodes}});
+    if(error)throw error;
+    if(data&&data.error)throw new Error(data.error);
+    log('User roles changed',`${userId} — ${roleCodes.join(', ')}`);save();
+    closeModal();
+    await loadRealUsers();
+  }catch(e){
+    btn.disabled=false;statusEl.style.color='#a33c34';statusEl.textContent=e.message||String(e);
+  }
+}
+async function toggleRealUserStatus(userId,disable){
+  if(!confirm(disable?'Disable this user? They will be immediately signed out and unable to sign back in until re-enabled.':'Re-enable this user? They will be able to sign in again.'))return;
+  try{
+    const {data,error}=await window.marlumSupabase.functions.invoke('admin-users',{body:{action:'toggleStatus',userId,disable}});
+    if(error)throw error;
+    if(data&&data.error)throw new Error(data.error);
+    log('User status changed',`${userId} — ${disable?'Disabled':'Enabled'}`);save();
+    await loadRealUsers();
+  }catch(e){
+    alert(e.message||String(e));
+  }
+}
+function renderSecurityUsers(){
+  const secUsersEl=document.getElementById('secUsers');
+  if(!secUsersEl)return; // security page isn't in the DOM right now
+  if(realUsersCache===null){
+    document.getElementById('secRows').innerHTML='<tr><td colspan="6">Loading…</td></tr>';
+    return;
+  }
+  const su=realUsersCache;
+  document.getElementById('secUsers').textContent=su.length;
+  document.getElementById('secAdmins').textContent=su.filter(x=>x.roles.includes('Super Admin')).length;
+  document.getElementById('secDisabled').textContent=su.filter(x=>x.disabled).length;
+  const rows=su.map(u=>`<tr><td>${esc(u.email)}</td><td>—</td><td>${esc(u.roles.join(', ')||'—')}</td><td>${u.disabled?'Disabled':'Active'}</td><td>${u.lastSignInAt?u.lastSignInAt.slice(0,16).replace('T',' '):'Never'}</td><td><button class="btn secondary" onclick="openChangeRealUserRoles('${esc(u.id)}','${esc(u.email)}',${JSON.stringify(u.roles).replace(/"/g,'&quot;')})">Roles</button> <button class="btn secondary" onclick="toggleRealUserStatus('${esc(u.id)}',${u.disabled?'false':'true'})">${u.disabled?'Enable':'Disable'}</button></td></tr>`).join('')||'<tr><td colspan="6">No users yet.</td></tr>';
+  document.getElementById('secRows').innerHTML=realUsersLoading?'<tr><td colspan="6">Refreshing…</td></tr>':(realUsersError?`<tr><td colspan="6" style="color:#a33c34">Could not load users: ${esc(realUsersError)} — <a href="#" onclick="loadRealUsers();return false">retry</a></td></tr>`:rows);
+}
 function currentUser(){return db.currentUser||null}
 function userPermissions(roles){
   roles=Array.isArray(roles)?roles:[roles];
@@ -1180,46 +1180,6 @@ function canPerformApproval(u,action){
 function approvalConflict(u,action,createdBy){
   let roles=normalizeRoles(u);
   return createdBy && createdBy===u.username && ['Payroll Approval','Payment Approval'].includes(action);
-}
-function openSystemUser(){
-  let employees=db.employees;
-  openModal(`<h3>Create System User</h3><div class="grid">
-  <label>Employee<select id="sysEmp">${employees.map(e=>`<option value="${e.id}">${esc(e.name)} (${esc(e.id)})</option>`).join('')}</select></label>
-  <label>Username<input id="sysUsername" placeholder="e.g. accountant01"></label>
-  <label>Roles (select one or more)<div id="sysRoles" class="checkbox-list">${Object.keys(rolePermissions).map(r=>`<label><input type="checkbox" value="${r}"> ${r}</label>`).join('')}</div></label>
-  <label>Status<select id="sysStatus"><option>Active</option><option>Disabled</option></select></label>
-  <label>Temporary Password<input id="sysPassword" type="password" placeholder="Set initial password"></label>
-  </div>
-  <p class="label">Prototype security: passwords are not stored in plaintext in this version. Production authentication will require server-side password hashing, MFA/session controls and secure recovery.</p>
-  <div class="toolbar"><button class="btn primary" onclick="saveSystemUser()">Create User</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`);
-}
-function hashPrototype(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(16)}
-function saveSystemUser(){
-  let emp=document.getElementById('sysEmp').value,username=document.getElementById('sysUsername').value.trim(),password=document.getElementById('sysPassword').value;
-  let roles=[...document.querySelectorAll('#sysRoles input:checked')].map(x=>x.value);
-  if(!username||password.length<4){alert('Enter a username and a temporary password of at least 4 characters.');return}
-  if(!roles.length){alert('Select at least one role.');return}
-  if(systemUsers().some(u=>u.username.toLowerCase()===username.toLowerCase())){alert('Username already exists.');return}
-  let e=db.employees.find(x=>x.id===emp);
-  systemUsers().push({id:'USR-'+Date.now(),emp,name:e?.name||'System User',username,roles,role:roles[0],status:document.getElementById('sysStatus').value,passwordHash:hashPrototype(password),lastAccess:'',createdAt:new Date().toISOString()});
-  log('System user created',`${username} — ${roles.join(', ')}`);save();closeModal();render();
-}
-function toggleSystemUser(id){
-  let u=systemUsers().find(x=>x.id===id);if(!u)return;
-  u.status=u.status==='Active'?'Disabled':'Active';save();log('System user status changed',`${u.username} — ${u.status}`);render();
-}
-function changeUserRole(id){
-  let u=systemUsers().find(x=>x.id===id);if(!u)return;
-  let roles=normalizeRoles(u);
-  openModal(`<h3>Change Roles — ${esc(u.username)}</h3>
-  <div class="checkbox-list">${Object.keys(rolePermissions).map(r=>`<label><input type="checkbox" class="editRole" value="${r}" ${roles.includes(r)?'checked':''}> ${r}</label>`).join('')}</div>
-  <div class="toolbar"><button class="btn primary" onclick="saveUserRoles('${esc(id)}')">Save Roles</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`);
-}
-function saveUserRoles(id){
-  let u=systemUsers().find(x=>x.id===id);if(!u)return;
-  let roles=[...document.querySelectorAll('.editRole:checked')].map(x=>x.value);
-  if(!roles.length){alert('Select at least one role.');return}
-  u.roles=roles;u.role=roles[0];save();log('User roles changed',`${u.username} — ${roles.join(', ')}`);closeModal();render();
 }
 
 function openRoleMatrix(){
@@ -1979,18 +1939,13 @@ document.getElementById('pfRows').innerHTML=pbs.slice().reverse().map(b=>{
 }).join('')||'<tr><td colspan="6">No payroll payment batches created.</td></tr>';
 
 
-let su=systemUsers();
-document.getElementById('secUsers').textContent=su.length;
-document.getElementById('secAdmins').textContent=su.filter(x=>normalizeRoles(x).includes('Super Admin')).length;
-document.getElementById('secDisabled').textContent=su.filter(x=>x.status!=='Active').length;
-document.getElementById('secAudit').textContent=(db.auditLog||[]).length;
-document.getElementById('secRows').innerHTML=su.map(u=>`<tr><td>${esc(u.username)}</td><td>${esc(u.name||'—')}</td><td>${esc(normalizeRoles(u).join(', '))}</td><td>${esc(u.status)}</td><td>${u.lastAccess?u.lastAccess.slice(0,16).replace('T',' '):'Never'}</td><td><button class="btn secondary" onclick="changeUserRole('${esc(u.id)}')">Role</button> <button class="btn secondary" onclick="toggleSystemUser('${esc(u.id)}')">${u.status==='Active'?'Disable':'Enable'}</button></td></tr>`).join('')||'<tr><td colspan="6">No system users created.</td></tr>';
+document.getElementById('secAudit').textContent=(db.audit||[]).length;
+renderSecurityUsers();
 
 
 let eu=essUsers(),activeESS=db.employees.filter(e=>e.status==='Active');
 let pendingESS=(db.leaves||[]).filter(x=>x.source==='Employee Portal'&&x.status==='Pending').length;
 document.getElementById('essUsers').textContent=Object.values(eu).filter(x=>x.enabled).length;
-document.getElementById('essLeaveRequests').textContent=(db.leaves||[]).filter(x=>x.source==='Employee Portal').length;
 document.getElementById('essPayslips').textContent=db.payroll?.items?.length||0;
 document.getElementById('essPending').textContent=pendingESS;
 document.getElementById('essRows').innerHTML=activeESS.map(e=>{let u=essUserFor(e.id);return `<tr><td>${esc(e.name)}</td><td>${esc(e.id)}</td><td>${u.enabled?'Enabled':'Disabled'}</td><td>${u.lastAccess?u.lastAccess.slice(0,16).replace('T',' '):'Never'}</td><td><button class="btn secondary" onclick="showEmployeePortal('${esc(e.id)}')">View Portal</button></td></tr>`}).join('');
@@ -2030,26 +1985,20 @@ document.getElementById('hrEmployeeRows').innerHTML=hrActive.map(e=>{
   return `<tr><td>${esc(e.name)}</td><td>${esc(e.id)}</td><td>${esc(e.dept||'—')}</td><td>${esc(e.joinDate||'—')}</td><td>${count}</td><td><button class="btn secondary" onclick="editHRProfile('${esc(e.id)}')">Profile</button> <button class="btn secondary" onclick="openHRDocument('${esc(e.id)}')">Add Document</button></td></tr>`;
 }).join('');
 
-let d=todayISO(), atts=(db.attendance||[]).filter(x=>x.date===d);
-let present=atts.filter(x=>x.status==='Present'||x.status==='Late').length;
-document.getElementById('attEmployees').textContent=active.length;
-document.getElementById('attPresent').textContent=present;
-document.getElementById('attAbsent').textContent=Math.max(active.length-present,0);
-document.getElementById('attRate').textContent=(active.length?Math.round(present/active.length*100):0)+'%';
-document.getElementById('attendanceToday').innerHTML=`<h4>Today's Attendance — ${d}</h4><table><tr><th>Employee</th><th>Status</th><th>Time In</th><th>Time Out</th></tr>${active.map(e=>{let a=atts.find(x=>x.emp===e.id);return `<tr><td>${esc(e.name)}</td><td>${a?.status||'Not Recorded'}</td><td>${a?.timeIn||'—'}</td><td>${a?.timeOut||'—'}</td></tr>`}).join('')}</table>`;
-
-let lr=db.leaveRequests||[];
-document.getElementById('leavePending').textContent=lr.filter(x=>x.status==='Pending').length;
-document.getElementById('leaveApproved').textContent=lr.filter(x=>x.status==='Approved'&&x.createdAt?.slice(0,4)===String(new Date().getFullYear())).length;
-document.getElementById('leaveToday').textContent=lr.filter(x=>x.status==='Approved'&&x.start<=d&&x.end>=d).length;
-document.getElementById('leaveRows').innerHTML=lr.slice().reverse().map(l=>`<tr><td>${esc(l.name)}</td><td>${esc(l.type)}</td><td>${l.start}</td><td>${l.end}</td><td>${l.days}</td><td><span class="badge ${l.status==='Approved'?'approved':l.status==='Rejected'?'failed':'pending'}">${l.status}</span></td><td>${l.status==='Pending'?`<button class="btn success" onclick="leaveAction('${l.id}','Approved')">Approve</button> <button class="btn danger" onclick="leaveAction('${l.id}','Rejected')">Reject</button>`:'—'}</td></tr>`).join('')||'<tr><td colspan="7">No leave requests.</td></tr>';
-
-document.getElementById('payrollTitle').textContent=p?`${p.displayMonth||p.month} — ${p.status} — MONTHLY`:'No payroll calculated';
-document.getElementById('payrollRows').innerHTML=p?p.items.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.basic)}</td><td>${money(x.housing)}</td><td>${money(x.transport)}</td><td>${money(x.other)}</td><td>${money(x.bonus)}</td><td>${money(x.deduction+x.loanRepayment)}</td><td><b>${money(x.netPay)}</b></td></tr>`).join(''):'<tr><td colspan="8">Click Calculate / Refresh Payroll.</td></tr>';
-if(p){let sums=['basic','housing','transport','other','bonus'].map(k=>p.items.reduce((a,x)=>a+(x[k]||0),0));let totalAdjust=p.items.reduce((a,x)=>a+(x.deduction||0)+(x.loanRepayment||0),0);document.getElementById('payrollFoot').innerHTML=`<tr><th>Total</th>${sums.map(x=>`<th>${money(x)}</th>`).join('')}<th>${money(totalAdjust)}</th><th>${money(net)}</th></tr>`}else document.getElementById('payrollFoot').innerHTML='';
-let pay=db.payments.filter(x=>x.payroll===p?.month);
-document.getElementById('paymentSummary').innerHTML=p?`<p><b>${esc(p.displayMonth||p.month)}</b> · <b>Monthly salary payment</b> · Payroll status: <span class="badge ${p.status==='Locked'?'approved':p.status==='Approved'?'approved':'pending'}">${p.status}</span> · Net payroll: <b>${money(net)}</b></p>`:'Calculate payroll first.';
-document.getElementById('paymentRows').innerHTML=pay.map(x=>`<tr><td>${esc(x.name)}</td><td>${money(x.amount)}</td><td>${esc(x.bank||'—')}</td><td>${x.account?'****'+esc(x.account.slice(-4)):'—'}</td><td><span class="badge ${x.status==='Successful'?'paid':x.status==='Failed'?'failed':'pending'}">${x.status}</span></td><td>${esc(x.ref||'—')}</td></tr>`).join('')||'<tr><td colspan="6">No payment records.</td></tr>';
+// The legacy Attendance/Leave/Payroll/Bank-Payments pages (attEmployees, leavePending,
+// payrollTitle, paymentSummary, etc.) were removed from navigation and their HTML sections
+// deleted along with them — this block used to render into those elements from db.payroll,
+// which no longer has any way to be set by the app. Removed entirely rather than left dangling,
+// matching how the equivalent block was already retired elsewhere in this file: leaving it in
+// place with getElementById returning null on every one of these calls would throw on every
+// single render() cycle.
+// present/pay were previously computed by the legacy Attendance/Bank-Payments block removed
+// above. The "Attendance today" and "Bank payment batch" lines below are cosmetic status text on
+// the Reports/Dashboard page and get overwritten with accurate current-system figures by a later
+// render override anyway (see the cs.innerHTML replace further down) — these are just safe,
+// non-crashing fallback values for this base render pass.
+let present=(db.attendanceRecords||[]).filter(x=>x.date===todayISO()&&(x.status==='Present'||x.status==='Half Day')).length;
+let pay=(typeof paymentBatches==='function'?paymentBatches():db.paymentBatches||[]);
 document.getElementById('rGross').textContent=money(gross);
 document.getElementById('rNet').textContent=money(net);
 document.getElementById('rBonus').textContent=money(p?p.items.reduce((a,x)=>a+(x.bonus||0),0):0);
@@ -2183,7 +2132,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
 .mobile-menu{display:none}.marlum-dash-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:18px}
 .marlum-dash-head h2{margin-bottom:5px}.live-pill{font-size:12px;padding:7px 10px;border-radius:999px;background:var(--forest-100);color:var(--forest-900);font-weight:700}
 .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.metric-card{padding:18px;background:#fff;border:1px solid var(--line);border-radius:14px}.metric-card .metric{font-size:25px;margin-top:7px}
+.metric-card{padding:18px;background:#17382b;color:#fff;border:1px solid #17382b;border-radius:14px}.metric-card .metric{font-size:25px;margin-top:7px;color:#fff}.metric-card .label{color:#c9d9d0}.metric-card .metric-sub{color:#a9c2b5}
 .metric-sub{font-size:11px;color:var(--muted);margin-top:5px}.mini-bar{height:7px;border-radius:20px;background:#e8eee9;overflow:hidden;margin-top:10px}.mini-bar>span{display:block;height:100%;background:var(--forest-700)}
 .dash-two{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-top:14px}.action-list{display:grid;gap:9px}
 .action-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #edf1ee}.action-item:last-child{border-bottom:0}
@@ -2421,7 +2370,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   window.renderEmployees=function(){
     const q=(document.getElementById('employeeSearch')?.value||'').toLowerCase().trim(),el=document.getElementById('employeeRows');if(!el)return;
     const rows=db.employees.map(migrateEmployee).filter(e=>!q||[e.id,e.name,e.dept,e.position,e.employmentType,e.payrollFrequency,e.bank,e.phone,e.email].join(' ').toLowerCase().includes(q));
-    el.innerHTML=rows.map(e=>{const g=salaryGross(e.salaryComponents),review=e.dataQuality==='Review Required';return `<tr><td>${esc(e.id)}</td><td><b>${esc(e.name)}</b>${review?'<div class="form-help">Master data review</div>':''}</td><td>${esc(e.dept||'—')}</td><td>${esc(e.position||'—')}</td><td>${esc(e.employmentType)}</td><td>${esc(e.payrollFrequency)}</td><td>${e.employmentType==='Casual'?money(e.dailyRate):money(g)}</td><td>${esc(e.bank||'—')} / ${e.account?'****'+esc(e.account.slice(-4)):'—'}</td><td><span class="badge ${e.status==='Active'?'active-b':'failed'}">${esc(e.status)}</span></td><td><button class="btn secondary" onclick="viewEmployee('${esc(e.id)}')">View</button> <button class="btn secondary" onclick="openEmployee('${esc(e.id)}')">Edit</button> <button class="btn danger" onclick="deleteEmployee('${esc(e.id)}')">Delete</button></td></tr>`}).join('')||'<tr><td colspan="10">No matching employees.</td></tr>';
+    el.innerHTML=rows.map(e=>{const g=salaryGross(e.salaryComponents),review=e.dataQuality==='Review Required';const canDelete=normalizeRoles(activeSystemUser()).includes('Super Admin');return `<tr><td>${esc(e.id)}</td><td><b>${esc(e.name)}</b>${review?'<div class="form-help">Master data review</div>':''}</td><td>${esc(e.dept||'—')}</td><td>${esc(e.position||'—')}</td><td>${esc(e.employmentType)}</td><td>${esc(e.payrollFrequency)}</td><td>${e.employmentType==='Casual'?money(e.dailyRate):money(g)}</td><td>${esc(e.bank||'—')} / ${e.account?'****'+esc(e.account.slice(-4)):'—'}</td><td><span class="badge ${e.status==='Active'?'active-b':'failed'}">${esc(e.status)}</span></td><td><button class="btn secondary" onclick="viewEmployee('${esc(e.id)}')">View</button> <button class="btn secondary" onclick="openEmployee('${esc(e.id)}')">Edit</button> ${canDelete?`<button class="btn danger" onclick="deleteEmployee('${esc(e.id)}')">Delete</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="10">No matching employees.</td></tr>';
   };
   const empTable=document.querySelector('#employees table thead tr');if(empTable)empTable.innerHTML='<th>ID</th><th>Employee</th><th>Department</th><th>Position</th><th>Employment Type</th><th>Frequency</th><th>Rate / Gross</th><th>Bank</th><th>Status</th><th>Action</th>';
 
@@ -2523,19 +2472,67 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     // the real, live data in Supabase with that stale local snapshot a moment later. This is the
     // most plausible mechanism for "my changes get wiped" complaints that don't trace to a specific
     // button: a confirmed pull is required before any push is ever allowed.
-    if(!ready||syncing||!remoteLoadConfirmed)return;
+    if(!ready||!remoteLoadConfirmed)return;
+    pendingUnsaved=true;
+    updateSyncStatusUI('pending');
+    if(syncing)return; // a sync is already in flight; it will pick up this change or scheduleSync will be called again after it finishes
     clearTimeout(saveTimer);
-    saveTimer=setTimeout(syncState,700);
+    saveTimer=setTimeout(()=>syncState(0),700);
   }
-  async function syncState(){
-    if(!sb||!ready||syncing||!remoteLoadConfirmed)return;
+  let pendingUnsaved=false, syncRetryTimer=null, lastSyncError=null;
+  function updateSyncStatusUI(state){
+    const el=document.getElementById('syncStatus');
+    if(!el)return;
+    el.style.display='inline-block';
+    if(state==='pending'){el.textContent='Saving…';el.style.background='#fff3cd';el.style.color='#7a5b00';el.onclick=null;el.title='Your changes are being saved to the live database.'}
+    else if(state==='saved'){el.textContent='All changes saved';el.style.background='#e6f4ea';el.style.color='#1a7a3c';el.onclick=null;el.title='Everything is up to date in the live database.';setTimeout(()=>{if(el.textContent==='All changes saved')el.style.display='none'},4000)}
+    else if(state==='failed'){el.textContent='⚠ NOT SAVED — click to retry now';el.style.background='#fbe6e6';el.style.color='#a3231b';el.style.cursor='pointer';el.title=lastSyncError?`Last error: ${lastSyncError}. Your recent changes exist only in this browser tab until this is resolved — do not close this tab or switch devices yet.`:'Your recent changes exist only in this browser tab until this is resolved.';el.onclick=()=>{clearTimeout(syncRetryTimer);syncState(0)}}
+  }
+  // If this tab is about to be hidden or closed with unsaved changes, make one last synchronous-ish
+  // attempt rather than silently losing whatever hasn't synced yet — the normal 700ms debounce may
+  // never get the chance to fire if the tab closes first.
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&pendingUnsaved&&ready&&remoteLoadConfirmed)syncState(0)});
+  window.addEventListener('beforeunload',(e)=>{if(pendingUnsaved){syncState(0);e.preventDefault();e.returnValue=''}});
+  async function syncState(retryCount){
+    retryCount=retryCount||0;
+    if(!sb||!ready||!remoteLoadConfirmed)return;
+    if(syncing)return; // an attempt is already running; whatever triggered this will be covered once it finishes (pendingUnsaved stays true until a successful save)
     syncing=true;
+    clearTimeout(syncRetryTimer);
     try{
-      const {data:{user}}=await sb.auth.getUser();
-      if(!user)return;
-      await sb.from('marlum_app_state').upsert({id:STATE_ID,state:cleanState(),updated_by:user.id,updated_at:new Date().toISOString()},{onConflict:'id'});
-    }catch(e){console.warn('Marlum Supabase state sync:',e.message)}
-    finally{syncing=false}
+      let {data:{user}}=await sb.auth.getUser();
+      if(!user){
+        // The cached session looks empty — this is exactly what happens after a token quietly
+        // expires while the tab sat in the background (overnight, another tab in focus, laptop
+        // asleep). Try an explicit refresh before giving up; supabase-js's automatic background
+        // refresh can miss this if the tab's timers were throttled while inactive.
+        try{
+          const {data:refreshed}=await sb.auth.refreshSession();
+          user=refreshed&&refreshed.user;
+        }catch(refreshErr){/* fall through to the no-user handling below */}
+      }
+      if(!user){
+        lastSyncError='Not signed in (session could not be refreshed)';
+        throw new Error(lastSyncError);
+      }
+      const {error}=await sb.from('marlum_app_state').upsert({id:STATE_ID,state:cleanState(),updated_by:user.id,updated_at:new Date().toISOString()},{onConflict:'id'});
+      if(error)throw error;
+      pendingUnsaved=false;
+      lastSyncError=null;
+      updateSyncStatusUI('saved');
+    }catch(e){
+      lastSyncError=e.message||String(e);
+      console.warn('Marlum Supabase state sync failed:',lastSyncError);
+      updateSyncStatusUI('failed');
+      // Keep retrying on a backoff as long as there's something unsaved, rather than giving up
+      // after one attempt — a save failure here means real work sitting only in this browser tab.
+      if(pendingUnsaved){
+        const delay=Math.min(60000,5000*Math.pow(2,Math.min(retryCount,4)));
+        syncRetryTimer=setTimeout(()=>syncState(retryCount+1),delay);
+      }
+    }finally{
+      syncing=false;
+    }
   }
   async function loadState(){
     const {data,error}=await sb.from('marlum_app_state').select('state,updated_at,updated_by').eq('id',STATE_ID).maybeSingle();
@@ -2552,9 +2549,12 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       // session token, an RLS check that silently returned nothing). Since we can't tell which,
       // the safe choice is to NOT confirm the load: this blocks scheduleSync from ever pushing the
       // local/seed state over whatever is actually in Supabase, and surfaces it instead of
-      // silently proceeding as if everything loaded normally.
+      // silently proceeding as if everything loaded normally. Uses the same persistent header
+      // indicator as save failures — the old status() banner only shows on the login screen, so it
+      // would never be seen once the person is already signed in and working.
       console.warn('Marlum Supabase state load: no remote state row was returned. Live data will not be overwritten by local state until this is resolved — reload the page, and if this persists, check your connection or contact support before making changes.');
-      status('Could not confirm your live data loaded correctly. Your changes will NOT be saved until this is resolved — please reload the page before continuing. If this keeps happening, contact support.',true);
+      lastSyncError='Could not load your live data (no data came back from the database)';
+      updateSyncStatusUI('failed');
     }
   }
   function buildLogin(){
@@ -2851,7 +2851,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       const contains=g.querySelector(`[data-page="${id}"]`);
       if(contains){g.classList.add('open','active-group');contains.classList.add('active');}
     });
-    if(id==='timeTracker'&&typeof window.showTimeTrackerV19==='function')window.showTimeTrackerV19();if(id==='weeklyTimesheet'&&typeof window.renderWeeklyTimesheet==='function')window.renderWeeklyTimesheet();document.getElementById('mainNav')?.classList.remove('open');document.body.classList.remove('mobile-nav-open');document.querySelector('.mobile-menu')?.setAttribute('aria-expanded','false');
+    if(id==='timeTracker'&&typeof window.showTimeTrackerV19==='function')window.showTimeTrackerV19();if(id==='weeklyTimesheet'&&typeof window.renderWeeklyTimesheet==='function')window.renderWeeklyTimesheet();if(id==='security'&&typeof window.loadRealUsers==='function')window.loadRealUsers();document.getElementById('mainNav')?.classList.remove('open');document.body.classList.remove('mobile-nav-open');document.querySelector('.mobile-menu')?.setAttribute('aria-expanded','false');
     document.getElementById('mainNav')?.classList.remove('open');
   };
   window.toggleNavGroupV19=function(key){
@@ -2869,6 +2869,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     wsec.innerHTML=`<div class="v19-section-head"><div><h2>Weekly Timesheet</h2><div class="label">A simple weekly attendance sheet for casual staff, by site — this replaces the paper timesheet until biometric devices are introduced. No clock in/out, just marking each working day present. Marlum's week runs Tuesday through Monday, with Sunday never a regular column — Sunday work is recorded as "Plus1" in Extra Hr/day instead.</div></div></div>
     <div class="card"><div class="toolbar">
       <label>Site<select id="wtsSite" onchange="renderWeeklyTimesheet()"></select></label>
+      <label>Search Employee<input id="wtsEmpSearch" placeholder="Type a name…" autocomplete="off" oninput="renderWeeklyTimesheet()"></label>
       <label>Week Starting<input type="date" id="wtsWeekStart" onchange="renderWeeklyTimesheet()"></label>
       <button class="btn primary" onclick="openWtsBulkUpload()">Bulk Upload Timesheet</button>
       <button class="btn secondary" onclick="downloadWtsUploadTemplate()">Download Upload Template (All Sites, This Week)</button>
@@ -2954,7 +2955,8 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   function renderWtsTableBody(){
     const site=document.getElementById('wtsSite').value;
     const showAll=site==='__ALL__';
-    const staff=activeEmployees().filter(isCasualV19).filter(e=>showAll||(e.dept||'Unassigned')===site).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
+    const q=(document.getElementById('wtsEmpSearch')?.value||'').trim().toLowerCase();
+    const staff=activeEmployees().filter(isCasualV19).filter(e=>showAll||(e.dept||'Unassigned')===site).filter(e=>!q||e.name.toLowerCase().includes(q)||String(e.id).includes(q)).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
     const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const weekStart=wtsDayDates[0];
     document.getElementById('wtsTableWrap').innerHTML=`<table><thead><tr><th>S/N</th><th>Employee ID</th><th>Employee Name</th>${showAll?'<th>Site</th>':''}${dayNames.map((d,i)=>`<th>${d}<br><input type="date" value="${wtsDayDates[i]}" onchange="updateWtsDayDate(${i},this.value)" style="font-size:10px;padding:3px;margin-top:4px;width:125px"></th>`).join('')}<th>Extra Hr/day</th></tr></thead><tbody>
@@ -3384,10 +3386,10 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   if(att2){
     att2.innerHTML=`<div class="v19-section-head"><div><h2>Attendance</h2><div class="label">Daily attendance for Fixed Salary staff. Casual staff attendance is tracked through the Time Sheet instead, since their pay depends on hours worked.</div></div><span class="v19-live">Live data</span></div>
       <div class="grid">
-        <div class="card"><div class="label">Fixed Staff Present</div><div class="metric" id="v19FixedAttendance">0</div></div>
-        <div class="card"><div class="label">Fixed Staff Not Marked</div><div class="metric" id="v19FixedNotMarked">0</div></div>
-        <div class="card"><div class="label">Casual Staff Present</div><div class="metric" id="v19CasualAttendance">0</div></div>
-        <div class="card"><div class="label">Attendance Rate</div><div class="metric" id="v19AttendanceRate">0%</div></div>
+        <div class="metric-card clickable-card" onclick="openAttendanceHistory()" title="Go to Attendance History"><div class="label">Fixed Staff Present</div><div class="metric" id="v19FixedAttendance">0</div></div>
+        <div class="metric-card clickable-card" onclick="openAttendanceEntry()" title="Record attendance for unmarked staff"><div class="label">Fixed Staff Not Marked</div><div class="metric" id="v19FixedNotMarked">0</div></div>
+        <div class="metric-card clickable-card" onclick="showTimeTrackerV19();navGoV19('timeTracker',document.querySelector('#mainNav [data-page=&quot;timeTracker&quot;]'))" title="Go to Time Sheet (Casual Staff)"><div class="label">Casual Staff Present</div><div class="metric" id="v19CasualAttendance">0</div></div>
+        <div class="metric-card clickable-card" onclick="openAttendanceHistory()" title="Go to Attendance History"><div class="label">Attendance Rate</div><div class="metric" id="v19AttendanceRate">0%</div></div>
       </div>
       <div style="display:none"><span id="attCasual"></span><span id="attWeekly"></span><span id="attPending"></span><span id="attApprovedDays"></span></div>
       <div class="card"><div class="toolbar">
@@ -3566,7 +3568,13 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
 })();
 </script>
 <style id="v191-style">
-header{min-height:52px;padding:10px 18px;justify-content:flex-end;gap:18px}
+header{min-height:52px;padding:10px 18px;justify-content:flex-end;gap:18px;flex-wrap:wrap;row-gap:6px}
+/* The sign-out button (inside #marlumAuthBox) must never be able to overflow off-screen and become
+   unreachable — this was reported as "missing" on a real desktop screen even after an earlier fix
+   that only added this same safety net to the ≤650px mobile rule. Any viewport width narrower than
+   the combined width of the brand name + date + clock + sync badge now wraps the auth box onto its
+   own line instead of pushing it past the edge of the screen. */
+#marlumAuthBox{flex-shrink:0}
 header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-size:12px;color:#496057}
 .side-toggle,.mobile-menu,.nav-hamburger{display:none!important}
 #mainNav{background:#fbfdfc;border-right:1px solid #dfe8e2}
@@ -3582,7 +3590,17 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
 .v191-muted{font-size:11px;color:#6f7973}
 @media(max-width:900px){#mainNav{width:210px;min-width:210px}}
 @media(max-width:650px){
-  header{justify-content:flex-start;padding:9px 12px;gap:10px;position:sticky;top:0;z-index:1100;min-height:52px}
+  header{justify-content:flex-start;flex-wrap:wrap;padding:9px 12px;gap:8px 10px;position:sticky;top:0;z-index:1100;min-height:52px}
+  /* The sign-out button must always be reachable without horizontal scrolling — on a real phone
+     width, the brand name + date + clock + sync badge already exceed the screen before even
+     reaching it, silently pushing it off-screen. flex-wrap above is the safety net (nothing can
+     ever be fully unreachable again), and margin-left:auto plus the trimmed/hidden text below
+     keep it on the first line in the common case instead of relying on the wrap. */
+  #marlumAuthBox{margin-left:auto;flex-shrink:0}
+  .device-clock .clock-suffix{display:none}
+  #marlumHeaderBrand{font-size:13px}
+  header #today{display:none}
+  #syncStatus{order:99;flex-basis:100%;margin-left:0!important}
   .layout{display:block;min-height:calc(100vh - 52px)}
   main{padding:15px;min-width:0;overflow-x:hidden}
   #mainNav{position:fixed;top:0;left:-290px;width:270px;min-width:270px;height:100vh;z-index:1200;display:block;overflow-y:auto;overflow-x:hidden;padding:58px 12px 18px;box-shadow:6px 0 24px rgba(0,0,0,.16);transition:left .22s ease}
@@ -3609,7 +3627,7 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
 (function(){
   const localDateISO=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
   window.todayISO=localDateISO;
-  function refreshDeviceClock(){const d=new Date(),date=d.toLocaleDateString(undefined,{weekday:'short',year:'numeric',month:'short',day:'numeric'}),time=d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit'});const a=document.getElementById('today'),b=document.getElementById('deviceClock');if(a)a.textContent=date;if(b)b.textContent=time+' · Device local time'}
+  function refreshDeviceClock(){const d=new Date(),date=d.toLocaleDateString(undefined,{weekday:'short',year:'numeric',month:'short',day:'numeric'}),time=d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit'});const a=document.getElementById('today'),b=document.getElementById('deviceClock');if(a)a.textContent=date;if(b)b.innerHTML=`${esc(time)}<span class="clock-suffix"> · Device local time</span>`}
   setInterval(refreshDeviceClock,1000);refreshDeviceClock();
 
   const esc0=window.escV19||window.esc||((s)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])));
@@ -3618,12 +3636,12 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
 
   // MD / Approver is the default approver for HR actions.
   window.approvalPermissions={...(window.approvalPermissions||{}),
-    'Time Sheet Approval':['Approver','Management'],
-    'Leave Approval':['Approver','Management'],
-    'Loan Approval':['Approver','Management'],
-    'Transfer Approval':['Approver','Management']
+    'Time Sheet Approval':['MD / Approver','Management'],
+    'Leave Approval':['MD / Approver','Management'],
+    'Loan Approval':['MD / Approver','Management'],
+    'Transfer Approval':['MD / Approver','Management']
   };
-  if(window.rolePermissions)window.rolePermissions['Approver']=[...new Set([...(window.rolePermissions['Approver']||[]),'attendance','leave','hr','compensation','ess'])];
+  if(window.rolePermissions)window.rolePermissions['MD / Approver']=[...new Set([...(window.rolePermissions['MD / Approver']||[]),'attendance','leave','hr','compensation','ess'])];
 
   function readFile(input,cb){
     const f=input?.files?.[0];if(!f){cb(null);return}
@@ -3683,6 +3701,7 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
     document.querySelectorAll('#mainNav .nav-group').forEach(g=>{const c=g.querySelector(`[data-page="${id}"]`);if(c){g.classList.add('open','active-group');c.classList.add('active')}});
     if(id==='timeTracker'&&typeof window.showTimeTrackerV19==='function')window.showTimeTrackerV19()
     if(id==='weeklyTimesheet'&&typeof window.renderWeeklyTimesheet==='function')window.renderWeeklyTimesheet()
+    if(id==='security'&&typeof window.loadRealUsers==='function')window.loadRealUsers()
   };
   window.toggleNavGroupV191=function(key){document.querySelector(`#mainNav .nav-group[data-group="${key}"]`)?.classList.toggle('open')};
 
@@ -3718,20 +3737,6 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
     </div>`);
   };
 
-  window.openEmployeeLeaveRequestV191=function(id){
-    const e=db.employees.find(x=>x.id===id);
-    openModal(`<h3>Leave Request — ${esc0(e.name)}</h3><div class="grid">
-      <label>Leave Type<select id="v191LvType"><option>Annual Leave</option><option>Sick Leave</option><option>Maternity</option><option>Compassionate</option><option>Study</option><option>Unpaid</option></select></label>
-      <label>Start Date<input id="v191LvStart" type="date" value="${localDateISO()}"></label><label>End Date<input id="v191LvEnd" type="date" value="${localDateISO()}"></label><label>Reason<input id="v191LvReason"></label>
-    </div><div class="v191-upload"><label>Upload Leave Request <input id="v191LvFile" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"></label></div>
-    <div class="toolbar"><button class="btn primary" onclick="submitLeaveV191('${esc0(id)}')">Submit for HR Approval</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`)
-  };
-  window.submitLeaveV191=function(id){
-    const s=document.getElementById('v191LvStart').value,e=document.getElementById('v191LvEnd').value;if(!s||!e||e<s){alert('Please enter a valid leave period.');return}
-    readFile(document.getElementById('v191LvFile'),a=>{const emp=db.employees.find(x=>x.id===id),days=Math.floor((new Date(e)-new Date(s))/86400000)+1;db.employeeRequests=db.employeeRequests||[];
-      db.employeeRequests.push({id:'REQ-LV-'+Date.now(),type:'Leave',subType:document.getElementById('v191LvType').value,emp:id,name:emp.name,start:s,end:e,days,reason:document.getElementById('v191LvReason').value,status:'Pending',attachment:a,createdAt:new Date().toISOString(),requestedBy:emp.name});
-      log('Employee leave request submitted',`${emp.name} — ${s} to ${e}`);save();closeModal();render()})
-  };
   window.openEmployeeLoanRequestV191=function(id){
     const e=db.employees.find(x=>x.id===id);
     openModal(`<h3>Loan Request — ${esc0(e.name)}</h3><div class="grid"><label>Loan Amount (₦)<input id="v191LoanAmount" type="number" min="1" step="1000"></label><label>Requested Repayment Term (Months)<input id="v191LoanTerm" type="number" min="1" max="60" value="12"></label><label>Reason<input id="v191LoanReason"></label></div>
@@ -3757,7 +3762,7 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   function approveRequest(id,kind){
     const r=(db.employeeRequests||[]).find(x=>x.id===id);if(!r)return;const u=activeSystemUser();
     const action=kind==='Leave'?'Leave Approval':kind==='Loan'?'Loan Approval':'Transfer Approval';
-    if(!normalizeRoles(u).some(r=>['Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can approve this request.');return}
+    if(!normalizeRoles(u).some(r=>['MD / Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can approve this request.');return}
     if((r.requestedBy===u.username||r.requestedBy===u.name)&&!normalizeRoles(u).includes('Super Admin')){alert('Segregation of duties: the requester cannot approve their own request.');return}
     r.status='Approved';r.approvedBy=u.username||u.name;r.approvedAt=new Date().toISOString();
     if(kind==='Loan'){
@@ -3771,7 +3776,7 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   function rejectRequest(id,kind){
     const r=(db.employeeRequests||[]).find(x=>x.id===id);if(!r)return;const u=activeSystemUser();
     const action=kind==='Leave'?'Leave Approval':kind==='Loan'?'Loan Approval':'Transfer Approval';
-    if(!normalizeRoles(u).some(r=>['Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can reject this request.');return}
+    if(!normalizeRoles(u).some(r=>['MD / Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can reject this request.');return}
     r.status='Rejected';r.rejectedBy=u.username||u.name;r.rejectedAt=new Date().toISOString();log(`${kind} request rejected`,`${r.name} — ${r.id}`);save();render()
   }
   window.approveRequestV191=approveRequest;window.rejectRequestV191=rejectRequest;
@@ -3814,9 +3819,46 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
     const sec=document.getElementById('reports');if(!sec)return;let old=document.getElementById('v191LoanReport');
     if(!old){old=document.createElement('div');old.id='v191LoanReport';old.className='card v191-section';sec.appendChild(old)}
     const ls=db.loans||[];
-    old.innerHTML=`<h3>Employee Loan Report</h3><div class="toolbar"><button class="btn secondary" onclick="printAllLoanReportV191()">Print Loan Report</button><button class="btn primary" onclick="downloadAllLoanReportV191()">Download Loan Report</button></div><table><tr><th>Employee</th><th>Loan ID</th><th>Approved</th><th>Monthly Deduction</th><th>Outstanding</th><th>Status</th></tr>${ls.map(l=>`<tr><td>${esc0(l.name)}</td><td>${esc0(l.id)}</td><td>${money0(l.approvedAmount)}</td><td>${money0(l.monthlyDeduction)}</td><td>${money0(l.outstanding)}</td><td>${esc0(l.status)}</td></tr>`).join('')||'<tr><td colspan="6">No employee loans recorded.</td></tr>'}</table>`
+    const canManage=normalizeRoles(activeSystemUser()).includes('Super Admin');
+    old.innerHTML=`<h3>Employee Loan Report</h3><div class="toolbar"><button class="btn secondary" onclick="printAllLoanReportV191()">Print Loan Report</button><button class="btn primary" onclick="downloadAllLoanReportV191()">Download Loan Report</button></div><table><tr><th>Employee</th><th>Loan ID</th><th>Approved</th><th>Monthly Deduction</th><th>Outstanding</th><th>Status</th>${canManage?'<th>Action</th>':''}</tr>${ls.map(l=>`<tr><td>${esc0(l.name)}</td><td>${esc0(l.id)}</td><td>${money0(l.approvedAmount)}</td><td>${money0(l.monthlyDeduction)}</td><td>${money0(l.outstanding)}</td><td>${esc0(l.status)}</td>${canManage?`<td><button class="btn secondary" onclick="openEditLoan('${esc0(l.id)}')">Edit</button> <button class="btn danger" onclick="deleteLoanRecord('${esc0(l.id)}')">Delete</button></td>`:''}</tr>`).join('')||`<tr><td colspan="${canManage?7:6}">No employee loans recorded.</td></tr>`}</table>`
   }
   function loanReportHTML(){const ls=db.loans||[];return `<!doctype html><html><head><meta charset="utf-8"><title>Marlum Employee Loan Report</title><style>body{font-family:Arial;padding:25px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:7px;text-align:left}</style></head><body><h2>${esc0(db.settings.companyName||'Marlum Nigeria Ltd.')}</h2><h3>Employee Loan Report</h3><table><tr><th>Employee</th><th>Loan ID</th><th>Approved</th><th>Monthly Deduction</th><th>Outstanding</th><th>Status</th></tr>${ls.map(l=>`<tr><td>${esc0(l.name)}</td><td>${esc0(l.id)}</td><td>${money0(l.approvedAmount)}</td><td>${money0(l.monthlyDeduction)}</td><td>${money0(l.outstanding)}</td><td>${esc0(l.status)}</td></tr>`).join('')}</table></body></html>`}
+  window.openEditLoan=function(loanId){
+    if(!normalizeRoles(activeSystemUser()).includes('Super Admin')){alert('Only a Super Admin can edit or delete a loan record.');return}
+    const l=(db.loans||[]).find(x=>x.id===loanId);if(!l)return;
+    openModal(`<h3>Edit Loan — ${esc0(l.name)}</h3>
+    <div class="grid">
+      <label>Approved Amount<input id="elAmount" type="number" min="0" step="0.01" value="${l.approvedAmount}"></label>
+      <label>Monthly Deduction<input id="elMonthly" type="number" min="0" step="0.01" value="${l.monthlyDeduction}"></label>
+      <label>Outstanding Balance<input id="elOutstanding" type="number" min="0" step="0.01" value="${l.outstanding}"></label>
+      <label>Status<select id="elStatus"><option ${l.status==='Active'?'selected':''}>Active</option><option ${l.status==='Paid Off'?'selected':''}>Paid Off</option><option ${l.status==='Cancelled'?'selected':''}>Cancelled</option></select></label>
+    </div>
+    <p class="label">Changes here update the loan record, the linked payroll deduction (so future payroll cycles deduct the correct amount), and this employee's own Employee Self-Service portal — all three stay in sync.</p>
+    <div class="toolbar"><button class="btn primary" onclick="saveEditLoan('${esc0(loanId)}')">Save Changes</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`);
+  };
+  window.saveEditLoan=function(loanId){
+    if(!normalizeRoles(activeSystemUser()).includes('Super Admin')){alert('Only a Super Admin can edit or delete a loan record.');return}
+    const l=(db.loans||[]).find(x=>x.id===loanId);if(!l)return;
+    const amount=Number(document.getElementById('elAmount').value||0),monthly=Number(document.getElementById('elMonthly').value||0),outstanding=Number(document.getElementById('elOutstanding').value||0),status=document.getElementById('elStatus').value;
+    if(amount<0||monthly<0||outstanding<0){alert('Enter valid, non-negative amounts.');return}
+    l.approvedAmount=amount;l.monthlyDeduction=monthly;l.outstanding=outstanding;l.status=status;
+    // Keep the linked payroll deduction in sync — this is what payroll cycle calculation actually
+    // reads (deductionsFor()), not the loan record directly, so an edit here that stopped at the
+    // loan object alone would silently leave the old, wrong amount still being deducted.
+    const ded=(db.deductions||[]).find(d=>d.loanId===loanId);
+    if(ded){ded.amount=monthly;ded.status=status==='Active'?'Active':'Cancelled'}
+    log('Loan record edited',`${l.name} — ${l.id} — ${money(monthly)}/month, ${money(outstanding)} outstanding, ${status}`);
+    save();closeModal();render();
+  };
+  window.deleteLoanRecord=function(loanId){
+    if(!normalizeRoles(activeSystemUser()).includes('Super Admin')){alert('Only a Super Admin can edit or delete a loan record.');return}
+    const l=(db.loans||[]).find(x=>x.id===loanId);if(!l)return;
+    if(!confirm(`Permanently delete this loan record for ${l.name} (${money(l.outstanding)} outstanding)? This also stops any further payroll deduction for it. This cannot be undone.`))return;
+    db.loans=(db.loans||[]).filter(x=>x.id!==loanId);
+    db.deductions=(db.deductions||[]).filter(d=>d.loanId!==loanId);
+    log('Loan record deleted',`${l.name} — ${l.id} — ${money(l.outstanding)} outstanding at time of deletion`);
+    save();render();
+  };
   window.printAllLoanReportV191=function(){const w=window.open('','_blank');if(!w){alert('Please allow pop-ups to print.');return}w.document.write(loanReportHTML());w.document.close();w.print()};
   window.downloadAllLoanReportV191=function(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([loanReportHTML()],{type:'text/html'}));a.download='marlum-employee-loan-report.html';a.click()};
 
@@ -3868,12 +3910,12 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   }
   window.approveTimeSheetV191=function(id){
     const a=(db.timeSheetApprovals||[]).find(x=>x.id===id);if(!a)return;const u=activeSystemUser();
-    if(!normalizeRoles(u).some(r=>['Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can approve time sheets.');return}
+    if(!normalizeRoles(u).some(r=>['MD / Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can approve time sheets.');return}
     a.status='Approved';a.approvedBy=u.username||u.name;a.approvedAt=new Date().toISOString();const t=(db.timeTrackerRecords||[]).find(x=>x.emp===a.emp&&x.date===a.date);if(t)t.approvalStatus='Approved';log('Time Sheet approved',`${a.name} — ${a.date}`);save();render()
   };
   window.rejectTimeSheetV191=function(id){
     const a=(db.timeSheetApprovals||[]).find(x=>x.id===id);if(!a)return;const u=activeSystemUser();
-    if(!normalizeRoles(u).some(r=>['Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can reject time sheets.');return}
+    if(!normalizeRoles(u).some(r=>['MD / Approver','Management','Super Admin'].includes(r))){alert('Only the MD/Approver, Management or Super Admin role can reject time sheets.');return}
     a.status='Rejected';a.approvedBy=u.username||u.name;a.approvedAt=new Date().toISOString();log('Time Sheet rejected',`${a.name} — ${a.date}`);save();render()
   };
 
@@ -3955,7 +3997,7 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   // ---- 2. Demo role catalog + idempotent seeding into systemUsers ----
   const V20_DEMO_ROLES=[
     {key:'superadmin',username:'demo.superadmin@marlum.local',roles:['Super Admin'],label:'Super Admin'},
-    {key:'md',username:'demo.md@marlum.local',roles:['Approver','Management'],label:'MD / Approver'},
+    {key:'md',username:'demo.md@marlum.local',roles:['MD / Approver','Management'],label:'MD / Approver'},
     {key:'accountant',username:'demo.accountant@marlum.local',roles:['Accountant'],label:'Accountant'},
     {key:'fc',username:'demo.fc@marlum.local',roles:['Financial Controller'],label:'Financial Controller'},
     {key:'hr',username:'demo.hr@marlum.local',roles:['HR Manager'],label:'HR Manager'},
@@ -3984,7 +4026,7 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   window.__v20ShowWelcomeToast=showWelcomeToastV20;
 
   // ---- 4. Role -> page access map, built from the existing rolePermissions module list ----
-  const V20_PAGE_CATEGORY={dashboard:'dashboard',employees:'employees',payroll:'payroll',paycycles:'payroll',paymentflow:'payments',payments:'payments',payslips:'payslips',attendance2:'attendance',timeTracker:'attendance',hrrecords:'hr',lifecycle:'hr',leave:'leave',compensation:'compensation',ess:'ess',security:'security',reports:'reports',audit:'security',settings:'security'};
+  const V20_PAGE_CATEGORY={dashboard:'dashboard',employees:'employees',payroll:'payroll',paycycles:'payroll',paymentflow:'payments',payments:'payments',payslips:'payslips',attendance2:'attendance',timeTracker:'attendance',weeklyTimesheet:'attendance',hrrecords:'hr',lifecycle:'hr',leave:'leave',compensation:'compensation',ess:'ess',security:'security',reports:'reports',audit:'security',settings:'security'};
   function permittedCategoriesV20(){
     const u=db.currentUser;
     if(!u)return null;
@@ -4168,7 +4210,7 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   const save=window.__marlumSave||(()=>{});
   const escV21=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-  const ELEVATED_ROLES=['Super Admin','HR Manager','Accountant','Financial Controller','Approver','Management'];
+  const ELEVATED_ROLES=['Super Admin','HR Manager','Accountant','Financial Controller','MD / Approver','Management'];
   function isPureEmployeeRoleV21(u){
     if(!u)return false;
     const roles=Array.isArray(u.roles)?u.roles:(u.role?[u.role]:[]);
@@ -4758,6 +4800,106 @@ header #today{color:#fff!important;opacity:.95}
   // finished, so the marker (if present at all) is guaranteed to already exist by then.
   setTimeout(removeDemoLoginBlockV29,60);
   setTimeout(removeDemoLoginBlockV29,450);
+})();
+</script>
+
+<script>
+(function(){
+  // Reports rebuild: the old buttons (Export Payroll CSV, Employee Payroll History) read from
+  // db.payroll, a variable nothing in the current payroll-cycle system ever populates — they always
+  // failed with "Calculate payroll first" even with real, completed payroll cycles on record.
+  // Department Summary was the one exception, already correctly reading live cycle data. This
+  // replaces all three with one flow: pick a report type and a date range, preview it as an actual
+  // table, then download — built on payrollCycles()/attendanceRecords()/paymentBatches(), the same
+  // real data sources verified elsewhere in this app, not the dead field.
+  let lastReportRows=null,lastReportHeaders=null,lastReportMoneyCols=null,lastReportFilename='marlum-report';
+  const REPORT_TYPES=[
+    {code:'payroll_summary',name:'Payroll Summary (by cycle)'},
+    {code:'department_summary',name:'Department Summary'},
+    {code:'employee_history',name:'Employee Payroll History'},
+    {code:'loan_report',name:'Loan Report'},
+    {code:'bank_payments',name:'Bank Payment Summary'},
+    {code:'attendance_summary',name:'Attendance Summary'},
+  ];
+  function cyclesInRange(start,end){return payrollCycles().filter(c=>!(c.end<start||c.start>end))}
+  window.openGenerateReport=function(){
+    const today=todayISO(),defaultStart=today.slice(0,8)+'01';
+    openModal(`<h3>Generate Report</h3>
+    <div class="grid">
+      <label>Report Type<select id="rgType" onchange="toggleReportEmployeeField()">${REPORT_TYPES.map(t=>`<option value="${t.code}">${esc(t.name)}</option>`).join('')}</select></label>
+      <label id="rgEmpWrap" style="display:none">Employee<input id="rgEmpSearch" placeholder="Type a name…" autocomplete="off" oninput="filterReportEmployeeOptions(this.value)"><select id="rgEmp" size="6"></select></label>
+      <label>Start Date<input id="rgStart" type="date" value="${defaultStart}"></label>
+      <label>End Date<input id="rgEnd" type="date" value="${today}"></label>
+    </div>
+    <div class="toolbar"><button class="btn primary" onclick="previewReport()">Preview</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>
+    <div id="rgPreviewWrap"></div>`);
+    window.toggleReportEmployeeField();
+  };
+  window.toggleReportEmployeeField=function(){
+    const type=document.getElementById('rgType')?.value,wrap=document.getElementById('rgEmpWrap');
+    if(!wrap)return;
+    if(type==='employee_history'){wrap.style.display='';window.filterReportEmployeeOptions('')}
+    else wrap.style.display='none';
+  };
+  window.filterReportEmployeeOptions=function(q){
+    const sel=document.getElementById('rgEmp');if(!sel)return;
+    q=(q||'').trim().toLowerCase();
+    const active=db.employees.filter(e=>e.status==='Active'&&(!q||e.name.toLowerCase().includes(q)||String(e.id).includes(q)));
+    sel.innerHTML=active.slice(0,50).map(e=>`<option value="${esc(e.id)}">${esc(e.name)} (${esc(e.id)})</option>`).join('')||'<option disabled>No match</option>';
+  };
+  window.previewReport=function(){
+    const type=document.getElementById('rgType').value,start=document.getElementById('rgStart').value,end=document.getElementById('rgEnd').value;
+    if(!start||!end||end<start){alert('Enter a valid date range.');return}
+    let headers=[],rows=[],moneyCols=[],filename='marlum-report';
+    if(type==='payroll_summary'){
+      const cycles=cyclesInRange(start,end);
+      headers=['Period','Type','Employees','Gross','Net','Status'];moneyCols=[3,4];
+      rows=cycles.map(c=>[`${c.start} to ${c.end}`,cycleTypeLabel(c.type),c.employeeCount,Number(c.totalGross||0),Number(c.totalNet||0),c.status]);
+      filename=`marlum-payroll-summary-${start}-to-${end}`;
+    }else if(type==='department_summary'){
+      const cycles=cyclesInRange(start,end),groups={};
+      cycles.forEach(c=>c.employees.forEach(x=>{const e=db.employees.find(a=>a.id===x.id),d=e?.dept||'Unassigned';groups[d]=groups[d]||{employees:0,gross:0,net:0};groups[d].employees++;groups[d].gross+=Number(x.gross||0);groups[d].net+=Number(x.netPay||0)}));
+      headers=['Department','Employee-Cycles','Gross','Net'];moneyCols=[2,3];
+      rows=Object.entries(groups).map(([d,g])=>[d,g.employees,g.gross,g.net]);
+      filename=`marlum-department-summary-${start}-to-${end}`;
+    }else if(type==='employee_history'){
+      const empId=document.getElementById('rgEmp').value;
+      if(!empId){alert('Select an employee.');return}
+      const cycles=cyclesInRange(start,end);
+      headers=['Period','Type','Gross','Net','Status'];moneyCols=[2,3];
+      rows=cycles.filter(c=>c.employees.some(x=>x.id===empId)).map(c=>{const x=c.employees.find(x=>x.id===empId);return [`${c.start} to ${c.end}`,cycleTypeLabel(c.type),Number(x.gross||0),Number(x.netPay||0),c.status]});
+      filename=`marlum-payroll-history-${empId}-${start}-to-${end}`;
+    }else if(type==='loan_report'){
+      headers=['Employee','Loan ID','Approved','Monthly Deduction','Outstanding','Status'];moneyCols=[2,3,4];
+      rows=(db.loans||[]).map(l=>[l.name,l.id,Number(l.approvedAmount||0),Number(l.monthlyDeduction||0),Number(l.outstanding||0),l.status]);
+      filename=`marlum-loan-report-${start}-to-${end}`;
+    }else if(type==='bank_payments'){
+      const batches=paymentBatches().filter(b=>!(b.period&&(b.period.slice(-10)<start||b.period.slice(0,10)>end)));
+      headers=['Batch ID','Period','Employees','Total Net','Status'];moneyCols=[3];
+      rows=batches.map(b=>[b.id,b.period,b.employeeCount,Number(b.totalNet||0),b.status]);
+      filename=`marlum-bank-payments-${start}-to-${end}`;
+    }else if(type==='attendance_summary'){
+      const recs=attendanceRecords().filter(r=>r.date>=start&&r.date<=end&&r.approvalStatus==='Approved'),groups={};
+      recs.forEach(r=>{const e=db.employees.find(x=>x.id===r.employeeId),key=r.employeeId;groups[key]=groups[key]||{name:e?e.name:r.employeeId,present:0};if(r.status==='Present'||r.status==='Half Day')groups[key].present++});
+      headers=['Employee','Days Present'];moneyCols=[];
+      rows=Object.values(groups).map(g=>[g.name,g.present]);
+      filename=`marlum-attendance-summary-${start}-to-${end}`;
+    }
+    lastReportRows=rows;lastReportHeaders=headers;lastReportMoneyCols=moneyCols;lastReportFilename=filename;
+    const wrap=document.getElementById('rgPreviewWrap');
+    wrap.innerHTML=`<h3>Preview (${rows.length} row${rows.length===1?'':'s'})</h3>
+    <table><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>
+    ${rows.map(r=>`<tr>${r.map((c,i)=>`<td>${moneyCols.includes(i)?money(c):esc(String(c))}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${headers.length}">No data for this range.</td></tr>`}
+    </table>
+    <div class="toolbar"><button class="btn primary" onclick="downloadReportCSV()">Download CSV</button></div>`;
+  };
+  window.downloadReportCSV=function(){
+    if(!lastReportRows){alert('Preview a report first.');return}
+    const csvRows=[lastReportHeaders,...lastReportRows];
+    const csv=csvRows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`${lastReportFilename}.csv`;a.click();
+    log('Report downloaded',`${lastReportFilename} — ${lastReportRows.length} rows`);save();
+  };
 })();
 </script>
 
