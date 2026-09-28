@@ -1082,7 +1082,7 @@ async function saveRealUserRoles(userId){
   }
 }
 async function toggleRealUserStatus(userId,disable){
-  if(!confirm(disable?'Disable this user? They will be immediately signed out and unable to sign back in until re-enabled.':'Re-enable this user? They will be able to sign in again.'))return;
+  if(!confirm(disable?'Disable this user? They will not be able to sign in, and their access to company data stops straight away. A screen they already have open may stay visible until they refresh, but it can no longer load or save anything. You can re-enable them at any time.':'Re-enable this user? They will be able to sign in again.'))return;
   try{
     const {data,error}=await window.marlumSupabase.functions.invoke('admin-users',{body:{action:'toggleStatus',userId,disable}});
     if(error)throw error;
