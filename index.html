@@ -978,8 +978,12 @@ function toggleESSUser(id){
 
 const rolePermissions={
   'Super Admin':['dashboard','employees','hr','compensation','payroll','attendance','leave','payslips','payments','reports','security','ess'],
-  'HR Manager':['dashboard','employees','hr','attendance','leave','payslips','reports'],
-  'Accountant':['dashboard','employees','compensation','payroll','payslips','payments','reports','attendance'],
+  // HR Manager administers the Employee Portal (portal access register), so 'ess' is listed explicitly now
+  // that the Employee role is no longer handed to everyone automatically.
+  'HR Manager':['dashboard','employees','hr','attendance','leave','payslips','reports','ess'],
+  // Accountant: attendance management and payroll management ONLY. Deliberately no Dashboard, Employee
+  // Management, Compensation, Reports or Employee Portal — those are HR-side information.
+  'Accountant':['payroll','payslips','attendance'],
   'Financial Controller':['dashboard','compensation','payroll','payslips','payments','reports'],
   'MD / Approver':['dashboard','payroll','compensation','hr','payments','reports'],
   'Employee':['ess'],
@@ -1097,8 +1101,8 @@ async function makeInviteLink(userId,email){
     if(!data||!data.link)throw new Error('No link came back from the server.');
     log('Invite link created',email);save();
     openModal(`<h3>Invite link for ${esc(email)}</h3>
-      <p class="label">Send this link to <b>${esc(email)}</b> yourself (for example on WhatsApp). When they open it they are signed in and asked to choose their own password. It works once and expires after a short time, so send it straight away.</p>
-      <p class="label" style="color:#a33c34">Anyone who holds this link can sign in as this person until it is used. Do not post it anywhere public.</p>
+      <p class="label">Send this link to <b>${esc(email)}</b> yourself — WhatsApp is fine. When they open it they tap <b>Continue</b> and then choose their own password. The link works once and stays valid for about an hour, so send it straight away. If it expires or is used, just create a new one here.</p>
+      <p class="label" style="color:#a33c34">Anyone who opens this link and taps Continue can activate this account, so send it only to the right person and do not post it anywhere public.</p>
       <textarea id="inviteLinkBox" readonly style="width:100%;height:120px;font-size:12px">${esc(data.link)}</textarea>
       <div class="toolbar"><button class="btn primary" onclick="copyInviteLink()">Copy link</button><button class="btn secondary" onclick="closeModal()">Close</button></div>
       <p id="inviteCopyMsg" class="label"></p>`);
@@ -2487,6 +2491,10 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   // Captured immediately, before the sign-in library removes it from the address: was this page opened
   // from an invite / password-reset link? (and did that link fail?)
   const ARRIVED_FROM_LINK=/[#&?]type=(recovery|invite|magiclink)\b/.test(location.hash+location.search);
+  // Invitation links made by a Super Admin carry their one-time token after the # (never sent to any server).
+  // It is only USED when the person taps Continue, so a chat app's link-preview robot cannot spend it.
+  const INVITE_TOKEN=(()=>{const m=location.hash.match(/[#&]marlum_invite=([^&]+)/);return m?decodeURIComponent(m[1]):''})();
+  if(INVITE_TOKEN){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
   const LINK_ERROR=(()=>{const m=(location.hash+'&'+location.search).match(/error_description=([^&]+)/);return m?decodeURIComponent(m[1].replace(/\+/g,' ')):''})();
   let sb=null, syncing=false, ready=false, saveTimer=null, remoteLoadConfirmed=false;
   const db=window.__marlumDB;
@@ -2656,7 +2664,9 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     const {data:rows,error:roleErr}=await sb.from('user_roles').select('roles(code,name)').eq('user_id',user.id);
     if(roleErr)throw roleErr;
     const roles=(rows||[]).map(x=>x.roles).filter(Boolean);
-    if(!roles.some(r=>r.code==='super_admin'))roles.push({code:'employee',name:'Employee'});
+    // NOTE: a login gets exactly the roles an administrator assigned in the database — nothing is added here.
+    // This used to add 'Employee' to every login except Super Admin, which quietly opened the Employee Portal
+    // (with its full company roster) to every accountant, controller and manager.
     setUser(user,roles);
     return user;
   }
@@ -2694,6 +2704,39 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin});status(error?'Could not send reset email: '+error.message:'Password reset email sent. Check your inbox.',!!error)
   };
   const EYE_OFF_SVG='<svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.2A9.6 9.6 0 0 1 12 5c5 0 8.5 4.2 9.5 7-.4 1-1.2 2.4-2.5 3.7M6.6 6.7C4.4 8.1 3 10.2 2.5 12c1 2.8 4.5 7 9.5 7 1.6 0 3-.4 4.2-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  function buildInviteScreen(){
+    if(document.getElementById('marlumInvite'))return;
+    const el=document.createElement('div');el.id='marlumInvite';el.className='marlum-login hidden';
+    el.innerHTML=`<div class="marlum-login-formside" style="flex:1 1 100%"><div class="login-card">
+      <div class="marlum-login-lockup"><div class="login-mark">M</div><span class="login-lockup-rule"></span><div class="login-lockup-text"><b>Marlum</b><span>HR &amp; Payroll</span></div></div>
+      <h1>You're invited</h1><p class="login-intro">Welcome to Marlum HR &amp; Payroll. Tap Continue to set up your account and choose your own password.</p>
+      <div class="login-section primary">
+        <p id="invStatus" class="marlum-setpw-msg" style="display:none"></p>
+        <button class="login-btn" id="invContinue" type="button" onclick="marlumAcceptInvite()">Continue</button>
+        <div class="auth-links" style="justify-content:center"><a href="javascript:void(0)" onclick="marlumInviteToLogin()">Go to sign in instead</a></div>
+      </div></div></div>`;
+    document.body.appendChild(el);
+  }
+  function invMessage(text,isError){const m=document.getElementById('invStatus');if(!m)return;m.style.display=text?'block':'none';m.textContent=text||'';m.style.background=isError?'#fff0ef':'#e8f5ec';m.style.color=isError?'#a33c34':'#1e6b3c'}
+  window.marlumInviteToLogin=function(){document.getElementById('marlumInvite')?.classList.add('hidden');showLogin()};
+  window.marlumAcceptInvite=async function(){
+    const btn=document.getElementById('invContinue');
+    if(!sb||!INVITE_TOKEN){invMessage('The sign-in service is not ready yet. Please wait a moment and try again.',true);return}
+    btn.disabled=true;invMessage('Setting things up…');
+    try{await sb.auth.signOut({scope:'local'})}catch(e){}   // leave any earlier session on this device behind
+    const {data,error}=await sb.auth.verifyOtp({token_hash:INVITE_TOKEN,type:'recovery'});
+    if(error||!data||!data.session){
+      btn.disabled=false;
+      invMessage('This invitation link is no longer valid — it may have expired or already been used. Ask your administrator to send you a new one.',true);
+      return;
+    }
+    try{
+      await identity();await loadState();ready=true;hideLogin();
+      document.getElementById('marlumInvite').classList.add('hidden');
+      if(typeof window.render==='function')window.render();
+      window.marlumShowSetPassword('link');
+    }catch(e){btn.disabled=false;invMessage('Signed in, but the secure data service could not be loaded: '+e.message,true)}
+  };
   function buildSetPassword(){
     if(document.getElementById('marlumSetPassword'))return;
     const el=document.createElement('div');el.id='marlumSetPassword';el.className='marlum-login hidden';
@@ -2742,8 +2785,11 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       window.marlumSupabase=sb;
       buildLogin();
       const last=localStorage.getItem('marlum_last_email');if(last){document.getElementById('loginUser').value=last;const rc=document.getElementById('authRemember');if(rc)rc.checked=true}
-      const {data:{session}}=await sb.auth.getSession();
-      if(session){
+      let session=null;
+      if(INVITE_TOKEN){buildInviteScreen();document.getElementById('marlumInvite').classList.remove('hidden')}   // do not restore or touch any session until the person taps Continue
+      else{session=(await sb.auth.getSession()).data.session}
+      if(INVITE_TOKEN){/* waiting for the person to tap Continue */}
+      else if(session){
         await identity();await loadState();ready=true;hideLogin();if(typeof window.render==='function')window.render();
         if(ARRIVED_FROM_LINK)window.marlumShowSetPassword('link');
       }else{showLogin();if(LINK_ERROR){status('That link is no longer valid — it may have expired or already been used. Ask your administrator to send you a new one.',true);try{history.replaceState(null,'',location.pathname)}catch(e){}}}
@@ -4040,6 +4086,8 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
     if(first){
       if(typeof window.navGoV191==='function')window.navGoV191(first.dataset.page,first);
       else if(typeof window.showPage==='function')window.showPage(first.dataset.page,first);
+    }else if(db.currentUser){
+      alert('Your account has not been given access to any part of the system yet. Please ask an administrator to assign you a role.');
     }
   }
 
@@ -4137,11 +4185,14 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   const save=window.__marlumSave||(()=>{});
   const escV21=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
-  const ELEVATED_ROLES=['Super Admin','HR Manager','Accountant','Financial Controller','MD / Approver','Management'];
+  // Only the roles that ADMINISTER the Employee Portal see the whole-company roster (portal access register,
+  // "View Portal" for anyone). Everybody else who has portal access — including a controller or accountant
+  // who is also a member of staff — sees only their OWN record.
+  const PORTAL_ADMIN_ROLES=['Super Admin','HR Manager','MD / Approver'];
   function isPureEmployeeRoleV21(u){
     if(!u)return false;
     const roles=Array.isArray(u.roles)?u.roles:(u.role?[u.role]:[]);
-    return roles.includes('Employee')&&!roles.some(r=>ELEVATED_ROLES.includes(r));
+    return roles.includes('Employee')&&!roles.some(r=>PORTAL_ADMIN_ROLES.includes(r));
   }
 
   // ---- Scope the #ess page to exactly one employee when the signed-in account is a pure Employee role.
