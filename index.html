@@ -978,14 +978,15 @@ function toggleESSUser(id){
 
 const rolePermissions={
   'Super Admin':['dashboard','employees','hr','compensation','payroll','attendance','leave','payslips','payments','reports','security','ess'],
-  // HR Manager administers the Employee Portal (portal access register), so 'ess' is listed explicitly now
-  // that the Employee role is no longer handed to everyone automatically.
+  // Employee Portal ('ess'): Super Admin, HR Manager and MD / Approver administer it (whole-company register);
+  // the Employee role opens it for a plain staff login; and ANY login linked to a real employee record gets it too
+  // (added in permittedCategoriesV20) but sees only their own record.
   'HR Manager':['dashboard','employees','hr','attendance','leave','payslips','reports','ess'],
   // Accountant: attendance management and payroll management ONLY. Deliberately no Dashboard, Employee
   // Management, Compensation, Reports or Employee Portal — those are HR-side information.
   'Accountant':['payroll','payslips','attendance'],
   'Financial Controller':['dashboard','compensation','payroll','payslips','payments','reports'],
-  'MD / Approver':['dashboard','payroll','compensation','hr','payments','reports'],
+  'MD / Approver':['dashboard','payroll','compensation','hr','payments','reports','ess'],
   'Employee':['ess'],
   'Management':['dashboard','reports']
 };
@@ -2734,6 +2735,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       await identity();await loadState();ready=true;hideLogin();
       document.getElementById('marlumInvite').classList.add('hidden');
       if(typeof window.render==='function')window.render();
+      if(typeof window.applyRoleAccessV20==='function')window.applyRoleAccessV20();
       window.marlumShowSetPassword('link');
     }catch(e){btn.disabled=false;invMessage('Signed in, but the secure data service could not be loaded: '+e.message,true)}
   };
@@ -2791,6 +2793,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       if(INVITE_TOKEN){/* waiting for the person to tap Continue */}
       else if(session){
         await identity();await loadState();ready=true;hideLogin();if(typeof window.render==='function')window.render();
+        if(typeof window.applyRoleAccessV20==='function')window.applyRoleAccessV20();
         if(ARRIVED_FROM_LINK)window.marlumShowSetPassword('link');
       }else{showLogin();if(LINK_ERROR){status('That link is no longer valid — it may have expired or already been used. Ask your administrator to send you a new one.',true);try{history.replaceState(null,'',location.pathname)}catch(e){}}}
       sb.auth.onAuthStateChange((event,session)=>{
@@ -4053,6 +4056,10 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
     const set=new Set();
     const rp=(typeof rolePermissions!=='undefined')?rolePermissions:{};
     roles.forEach(r=>(rp[r]||[]).forEach(c=>set.add(c)));
+    // The Employee Portal follows the employee RECORD, not the job title: any login that is linked to a real
+    // employee record (their email is on their record) can open it — and sees only their own record (see V21).
+    // A login with no employee record (for example an outside accountant) does not get it.
+    if(u.employeeId)set.add('ess');
     return set;
   }
   function isPageAllowedV20(id){
@@ -4079,6 +4086,14 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
     nav.querySelectorAll('.nav-group[data-group]').forEach(g=>{
       g.style.display='';
     });
+  };
+  // Applies this login's access to the menu and makes sure the page on screen is one they may use. Runs after a
+  // fresh sign-in AND when a saved session is restored (reloading the site or coming back later) — without the
+  // second, a restored session skipped the restrictions and landed on the Dashboard whatever the role.
+  window.applyRoleAccessV20=function(){
+    if(typeof window.filterNavByRoleV20==='function')window.filterNavByRoleV20();
+    const active=document.querySelector('.page.active');
+    if(!active||!isPageAllowedV20(active.id))goToFirstAllowedPageV20();
   };
   function goToFirstAllowedPageV20(){
     const nav=document.getElementById('mainNav');if(!nav)return;
@@ -4192,7 +4207,9 @@ header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-si
   function isPureEmployeeRoleV21(u){
     if(!u)return false;
     const roles=Array.isArray(u.roles)?u.roles:(u.role?[u.role]:[]);
-    return roles.includes('Employee')&&!roles.some(r=>PORTAL_ADMIN_ROLES.includes(r));
+    // own-record view for everyone with portal access except the administrators: a plain Employee login, or any
+    // login (accountant, controller, ...) that is linked to a real employee record
+    return (roles.includes('Employee')||!!u.employeeId)&&!roles.some(r=>PORTAL_ADMIN_ROLES.includes(r));
   }
 
   // ---- Scope the #ess page to exactly one employee when the signed-in account is a pure Employee role.
