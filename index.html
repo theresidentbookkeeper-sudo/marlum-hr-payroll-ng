@@ -196,6 +196,7 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
   <div class="metric-card clickable-card" onclick="scrollToCardTable('secRows')" title="Go to User list"><div class="label">Administrators</div><div class="metric" id="secAdmins">0</div></div>
   <div class="metric-card clickable-card" onclick="scrollToCardTable('secRows')" title="Go to User list"><div class="label">Locked / Disabled</div><div class="metric" id="secDisabled">0</div></div>
   <div class="metric-card clickable-card" onclick="navToPage('audit')" title="Go to Audit Log"><div class="label">Audit Events</div><div class="metric" id="secAudit">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('secRows')" title="Accounts that have never actually signed in yet"><div class="label">Not Yet Signed In</div><div class="metric" id="secNeverSignedIn">0</div></div>
 </div>
 <div class="card">
   <h3>Marlum Recommended Workflow</h3>
@@ -208,7 +209,8 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
     <button class="btn secondary" onclick="openRoleMatrix()">Role & Permission Matrix</button>
     <button class="btn secondary" onclick="openAuditLog()">Audit Log</button>
   </div>
-  <table><thead><tr><th>User</th><th>Employee</th><th>Roles</th><th>Status</th><th>Last Access</th><th>Actions</th></tr></thead>
+  <p class="label">"Signed In?" is the one place that shows onboarding status for EVERY account, including a plain Employee-Portal-only login — those never appear in the Audit Log's "Currently Online" panel, since that panel can only see accounts that also hold an operating role.</p>
+  <table><thead><tr><th>User</th><th>Employee</th><th>Roles</th><th>Status</th><th>Signed In?</th><th>Actions</th></tr></thead>
   <tbody id="secRows"></tbody></table>
 </div>
 </section>
@@ -293,7 +295,22 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 </section>
 
 
-<section id="audit" class="page"><h2>Audit Log</h2><table><thead><tr><th>Date/Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody id="auditRows"></tbody></table></section>
+<section id="audit" class="page"><h2>Audit Log</h2>
+<div class="card">
+  <h3>Currently Online</h3>
+  <p class="label">Anyone signed in right now, refreshed automatically. A device is dropped from this list if it goes quiet for a few minutes (lost connection, closed tab) even without an explicit sign-out.</p>
+  <table><thead><tr><th>Person</th><th>Role</th><th>Device</th><th>Signed In Since</th><th>Last Seen</th></tr></thead><tbody id="onlineRows"></tbody></table>
+</div>
+<div class="card">
+  <h3>Data Changes</h3>
+  <table><thead><tr><th>Date/Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody id="auditRows"></tbody></table>
+</div>
+<div class="card">
+  <h3>Page Activity</h3>
+  <p class="label">Every page anyone opens, most recent first. Kept to the last 300 entries so this does not grow without bound.</p>
+  <table><thead><tr><th>Date/Time</th><th>User</th><th>Device</th><th>Page</th></tr></thead><tbody id="activityRows"></tbody></table>
+</div>
+</section>
 
 <section id="settings" class="page"><h2>Settings</h2><div class="card"><div class="form"><label>Company Name<input id="companyName"></label></div>
 <div class="toolbar"><button class="btn primary" onclick="saveSettings()">Save Settings</button></div>
@@ -349,6 +366,7 @@ function save(){if(!storageOK)return;try{if(typeof window.__marlumOnSave==='func
   const id='AUD-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
   db.audit=db.audit||[];
   db.audit.unshift({id,date:new Date().toLocaleString(),user:who,action,details});
+  if(db.audit.length>1000)db.audit.length=1000; // keeps the audit trail from growing without bound
   save();
 }
 document.getElementById('today').textContent=new Date().toLocaleDateString('en-NG',{dateStyle:'medium'});
@@ -1163,7 +1181,8 @@ function renderSecurityUsers(){
   document.getElementById('secUsers').textContent=su.length;
   document.getElementById('secAdmins').textContent=su.filter(x=>x.roles.includes('Super Admin')).length;
   document.getElementById('secDisabled').textContent=su.filter(x=>x.disabled).length;
-  const rows=su.map(u=>`<tr><td>${esc(u.email)}</td><td>—</td><td>${esc(u.roles.join(', ')||'—')}</td><td>${u.disabled?'Disabled':'Active'}${u.provisioned?'':' <span style="color:#a33c34;font-weight:600">· Not approved</span>'}</td><td>${u.lastSignInAt?u.lastSignInAt.slice(0,16).replace('T',' '):'Never'}</td><td>${u.provisioned?'':`<button class="btn primary" onclick="approveRealUser('${esc(u.id)}','${esc(u.email)}')">Approve</button> `}<button class="btn secondary" onclick="makeInviteLink('${esc(u.id)}','${esc(u.email)}')">Invite link</button> <button class="btn secondary" onclick="openChangeRealUserRoles('${esc(u.id)}','${esc(u.email)}',${JSON.stringify(u.roles).replace(/"/g,'&quot;')})">Roles</button> <button class="btn secondary" onclick="toggleRealUserStatus('${esc(u.id)}',${u.disabled?'false':'true'})">${u.disabled?'Enable':'Disable'}</button></td></tr>`).join('')||'<tr><td colspan="6">No users yet.</td></tr>';
+  document.getElementById('secNeverSignedIn').textContent=su.filter(x=>!x.lastSignInAt).length;
+  const rows=su.map(u=>`<tr><td>${esc(u.email)}</td><td>—</td><td>${esc(u.roles.join(', ')||'—')}</td><td>${u.disabled?'Disabled':'Active'}${u.provisioned?'':' <span style="color:#a33c34;font-weight:600">· Not approved</span>'}</td><td>${u.lastSignInAt?esc(u.lastSignInAt.slice(0,16).replace('T',' ')):'<span style="color:#9a6b32;font-weight:600">Not yet signed in</span>'}</td><td>${u.provisioned?'':`<button class="btn primary" onclick="approveRealUser('${esc(u.id)}','${esc(u.email)}')">Approve</button> `}<button class="btn secondary" onclick="makeInviteLink('${esc(u.id)}','${esc(u.email)}')">Invite link</button> <button class="btn secondary" onclick="openChangeRealUserRoles('${esc(u.id)}','${esc(u.email)}',${JSON.stringify(u.roles).replace(/"/g,'&quot;')})">Roles</button> <button class="btn secondary" onclick="toggleRealUserStatus('${esc(u.id)}',${u.disabled?'false':'true'})">${u.disabled?'Enable':'Disable'}</button></td></tr>`).join('')||'<tr><td colspan="6">No users yet.</td></tr>';
   document.getElementById('secRows').innerHTML=realUsersLoading?'<tr><td colspan="6">Refreshing…</td></tr>':(realUsersError?`<tr><td colspan="6" style="color:#a33c34">Could not load users: ${esc(realUsersError)} — <a href="#" onclick="loadRealUsers();return false">retry</a></td></tr>`:rows);
 }
 function currentUser(){return db.currentUser||null}
@@ -2602,6 +2621,11 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     }catch(e){/* a transient failure here just means we try again on the next tick */}
   }
   setInterval(pollForRemoteUpdates,25000);
+  // Exposed so code outside this closure (the sign-out tracking added later in the file) can force an
+  // immediate save and actually wait for it to land, instead of guessing how long the normal 700ms
+  // debounce might take — needed so a "Signed out" entry reliably reaches the server before the page
+  // reloads and the chance to save anything is gone.
+  window.__marlumFlushSync=function(){clearTimeout(saveTimer);return syncState(0)};
   async function syncState(retryCount){
     retryCount=retryCount||0;
     if(!sb||!ready||!remoteLoadConfirmed)return;
@@ -5371,6 +5395,147 @@ function scrollToCardTable(id){
   renderBankRows();
 })();
 
+</script>
+
+<script id="marlum-activity-tracking">
+(function(){
+  'use strict';
+  // Login/logout events, who is currently online, and a running log of which pages get opened —
+  // added on top of everything else in the file, so it sees the final, fully-wrapped versions of
+  // sign-in, sign-out, page navigation and render.
+  //
+  // A known boundary: this only covers PRIVILEGED logins (Accountant, HR Manager, Financial
+  // Controller, MD/Approver, Super Admin) — anyone who loads the shared company data and can save
+  // to it. A login that is ONLY the plain Employee role never loads that shared data at all (it
+  // calls a narrow, read-only server function instead, by design, so it can never write back) —
+  // so it cannot appear here. Today that affects almost nobody, since the handful of staff with a
+  // portal also hold a privileged role. Supabase's own sign-in records (outside this app) already
+  // cover every account, privileged or not, if that is ever needed.
+
+  const HEARTBEAT_MS=60000;          // how often an open, signed-in tab confirms it is still there
+  const ONLINE_WITHIN_MS=170000;     // how stale "Last Seen" can be before a person drops off "Currently Online"
+  const ACTIVITY_CAP=300;            // oldest page-view entries are trimmed past this
+
+  window.marlumDetectDeviceType=function(){
+    // Browsers do not expose any way to tell a desktop from a laptop — nothing asks the OS that
+    // question — so both are simply "Computer". Phone and Tablet are the two categories a browser
+    // actually can identify.
+    const ua=(navigator.userAgent||'')+' '+(navigator.platform||'');
+    if(/iPad|Android(?!.*Mobile)|Tablet|Nexus 7|Nexus 10|KFAPWI/i.test(ua))return 'Tablet';
+    if(/Mobi|iPhone|iPod|Android.*Mobile|BlackBerry|Windows Phone/i.test(ua))return 'Phone';
+    return 'Computer';
+  };
+
+  function trimCap(arr,cap){
+    if(Array.isArray(arr)&&arr.length>cap)arr.length=cap; // entries are always unshifted in, so the tail is the oldest
+  }
+
+  let heartbeatTimer=null,currentSessionId=null;
+
+  function startHeartbeat(sessionId){
+    stopHeartbeat();
+    currentSessionId=sessionId;
+    heartbeatTimer=setInterval(()=>{
+      const s=(db.sessions||[]).find(x=>x.id===currentSessionId);
+      if(!s){stopHeartbeat();return}
+      s.lastSeen=new Date().toISOString();
+      save();
+    },HEARTBEAT_MS);
+  }
+  function stopHeartbeat(){
+    if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null}
+    currentSessionId=null;
+  }
+
+  // ---- Sign-in: record a session and a "Signed in" audit entry ----
+  const oldSignInTrack=window.marlumV19SignIn;
+  if(typeof oldSignInTrack==='function'){
+    window.marlumV19SignIn=async function(){
+      await oldSignInTrack();
+      if(db.currentUser){
+        db.sessions=db.sessions||[];
+        const device=window.marlumDetectDeviceType();
+        const sess={
+          id:'SESS-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),
+          userId:db.currentUser.id||db.currentUser.username,
+          username:db.currentUser.username||db.currentUser.email||'',
+          name:db.currentUser.name||db.currentUser.username||'Unknown',
+          roles:(db.currentUser.roles||[]).join(', '),
+          deviceType:device,
+          signedInAt:new Date().toISOString(),
+          lastSeen:new Date().toISOString()
+        };
+        db.sessions.unshift(sess);
+        log('Signed in',`${device}`);
+        startHeartbeat(sess.id);
+        if(typeof window.render==='function')window.render();
+      }
+    };
+  }
+
+  // ---- Sign-out: record it and make sure it actually reaches the server before the page reloads ----
+  const oldSignOutTrack=window.marlumV19SignOut;
+  if(typeof oldSignOutTrack==='function'){
+    window.marlumV19SignOut=async function(){
+      if(db.currentUser){
+        const device=window.marlumDetectDeviceType();
+        log('Signed out',`${device}`);
+        if(currentSessionId){
+          db.sessions=(db.sessions||[]).filter(x=>x.id!==currentSessionId);
+          save();
+        }
+        stopHeartbeat();
+        try{
+          if(typeof window.__marlumFlushSync==='function')await window.__marlumFlushSync();
+        }catch(e){/* proceeding with sign-out either way — losing this one log entry is not worth blocking it */}
+      }
+      await oldSignOutTrack();
+    };
+  }
+
+  // ---- Page activity: every page actually opened, who by, and on what kind of device ----
+  const oldShowPageTrack=window.showPage;
+  if(typeof oldShowPageTrack==='function'){
+    window.showPage=function(id,btn){
+      const before=document.querySelector('.page.active')?.id;
+      const result=oldShowPageTrack(id,btn);
+      const after=document.querySelector('.page.active')?.id;
+      if(db.currentUser&&after===id&&after!==before){
+        db.activityLog=db.activityLog||[];
+        const pageEl=document.getElementById(id);
+        const label=(pageEl&&pageEl.querySelector('h2')&&pageEl.querySelector('h2').textContent.trim())||id;
+        db.activityLog.unshift({
+          id:'ACT-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),
+          time:new Date().toISOString(),
+          user:db.currentUser.name||db.currentUser.username||'Unknown',
+          deviceType:window.marlumDetectDeviceType(),
+          page:label
+        });
+        trimCap(db.activityLog,ACTIVITY_CAP);
+        save();
+      }
+      return result;
+    };
+  }
+
+  // ---- "Currently Online" and "Page Activity" tables, refreshed on every render ----
+  const oldRenderTrack=window.render;
+  if(typeof oldRenderTrack==='function'){
+    window.render=function(){
+      oldRenderTrack();
+      const onlineEl=document.getElementById('onlineRows');
+      if(onlineEl){
+        const cutoff=Date.now()-ONLINE_WITHIN_MS;
+        const live=(db.sessions||[]).filter(s=>s.lastSeen&&new Date(s.lastSeen).getTime()>=cutoff);
+        onlineEl.innerHTML=live.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.roles)}</td><td>${esc(s.deviceType)}</td><td>${esc((s.signedInAt||'').slice(0,16).replace('T',' '))}</td><td>${esc((s.lastSeen||'').slice(0,16).replace('T',' '))}</td></tr>`).join('')||'<tr><td colspan="5">Nobody is currently online.</td></tr>';
+      }
+      const activityEl=document.getElementById('activityRows');
+      if(activityEl){
+        activityEl.innerHTML=(db.activityLog||[]).map(a=>`<tr><td>${esc((a.time||'').slice(0,16).replace('T',' '))}</td><td>${esc(a.user)}</td><td>${esc(a.deviceType)}</td><td>${esc(a.page)}</td></tr>`).join('')||'<tr><td colspan="4">No page activity recorded yet.</td></tr>';
+      }
+    };
+  }
+})();
 </script>
 
 </body></html>
