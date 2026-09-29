@@ -170,20 +170,20 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 <section id="ess" class="page">
 <h2>Employee Self-Service Portal</h2>
 <div class="grid">
-  <div class="metric-card clickable-card" onclick="openESSUserManager()" title="Open Portal User Manager"><div class="label">Portal Users</div><div class="metric" id="essUsers">0</div></div>
+  <div class="metric-card clickable-card" onclick="navToPage('employees')" title="Go to Employee Management to add or check an email address"><div class="label">Linked to a Portal</div><div class="metric" id="essUsers">0</div></div>
   <div class="metric-card clickable-card" onclick="navToPage('payslips')" title="Go to Payslips"><div class="label">Payslips Available</div><div class="metric" id="essPayslips">0</div></div>
   <div class="metric-card clickable-card" onclick="scrollToCardTable('essRows')" title="Go to Portal Access Register"><div class="label">Pending Requests</div><div class="metric" id="essPending">0</div></div>
 </div>
 <div class="card">
   <div class="toolbar">
     <button class="btn primary" onclick="openEmployeePortal()">Open Employee Portal</button>
-    <button class="btn secondary" onclick="openESSUserManager()">Portal User Manager</button>
+    <button class="btn secondary" onclick="navToPage('security')">Manage Sign-In Access</button>
   </div>
   <p class="label">The portal is designed for employee-level access. Employees can see only their own HR information, payslips and attendance records.</p>
 </div>
 <div class="card">
   <h3>Portal Access Register</h3>
-  <table><thead><tr><th>Employee</th><th>Employee ID</th><th>Portal Status</th><th>Last Access</th><th>Action</th></tr></thead>
+  <table><thead><tr><th>Employee</th><th>Employee ID</th><th>Portal Access</th><th>Admin Preview</th><th>Action</th></tr></thead>
   <tbody id="essRows"></tbody></table>
 </div>
 </section>
@@ -271,27 +271,9 @@ table{width:100%;border-collapse:collapse;background:#fffdfc;border:1px solid va
 <section id="cycleWorkspace" class="page"></section>
 
 <section id="attendance2" class="page">
-<h2>Attendance & Time Management</h2>
-<div class="grid">
-  <div class="card"><div class="label">Casual Staff</div><div class="metric" id="attCasual">0</div></div>
-  <div class="card"><div class="label">Weekly Records</div><div class="metric" id="attWeekly">0</div></div>
-  <div class="card"><div class="label">Pending Approval</div><div class="metric" id="attPending">0</div></div>
-  <div class="card"><div class="label">Approved Days</div><div class="metric" id="attApprovedDays">0</div></div>
-</div>
-<div class="card">
-  <div class="toolbar">
-    <button class="btn primary" onclick="openAttendanceEntry()">+ Record Attendance</button>
-    <button class="btn primary" onclick="openBulkAttendanceImport()">Bulk Import Attendance</button>
-    <button class="btn secondary" onclick="openAttendanceRegister()">Attendance Register</button>
-    <button class="btn secondary" onclick="openAttendanceApproval()">Approval Queue</button>
-  </div>
-  <p class="label"><strong>Casual payroll link:</strong> approved attendance records determine payable days for the weekly casual payroll. Fixed-salary employees remain on monthly payroll.</p>
-</div>
-<div class="card">
-  <h3>Attendance Register</h3>
-  <table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Status</th><th>Payable Day</th><th>Entered By</th><th>Action</th></tr></thead>
-  <tbody id="attRows"></tbody></table>
-</div>
+<h2>Attendance</h2>
+<p class="label">Loading…</p>
+<div style="display:none"><span id="attCasual"></span><span id="attWeekly"></span><span id="attPending"></span><span id="attApprovedDays"></span></div>
 </section>
 
 <section id="reports" class="page">
@@ -361,7 +343,14 @@ const DEFAULT_EMPLOYEE_SEED=[];
 const KEY='marlum_hr_payroll_v7';let storageOK=true;let db;/* no local copy of the database is ever kept or read; wipe any left by older versions */try{localStorage.removeItem(KEY)}catch(e){}db=null;db=db||{employees:DEFAULT_EMPLOYEE_SEED.map(e=>({...e})),leave:[],payroll:null,payments:[],audit:[],settings:{companyName:'Marlum Nigeria Ltd.'},salaryHistory:[],documents:[],payrollAdjustments:[],payrollHistory:[],attendance:[],leaveRequests:[],leaveBalances:{},attendanceSettings:{workDays:5}};
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-function save(){if(!storageOK)return;try{if(typeof window.__marlumOnSave==='function')window.__marlumOnSave()}catch(e){storageOK=false;let box=document.getElementById('appError'),text=document.getElementById('appErrorText');if(box&&text){text.textContent='Local storage is unavailable in this preview, so changes will not be saved after you reload.';box.style.display='block'}}}function log(action,details){db.audit.unshift({date:new Date().toLocaleString(),user:'Administrator',action,details});save()}
+function save(){if(!storageOK)return;try{if(typeof window.__marlumOnSave==='function')window.__marlumOnSave()}catch(e){storageOK=false;let box=document.getElementById('appError'),text=document.getElementById('appErrorText');if(box&&text){text.textContent='Local storage is unavailable in this preview, so changes will not be saved after you reload.';box.style.display='block'}}}function log(action,details){
+  const u=(typeof activeSystemUser==='function')?activeSystemUser():null;
+  const who=(u&&(u.name||u.username))||'System';
+  const id='AUD-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+  db.audit=db.audit||[];
+  db.audit.unshift({id,date:new Date().toLocaleString(),user:who,action,details});
+  save();
+}
 document.getElementById('today').textContent=new Date().toLocaleDateString('en-NG',{dateStyle:'medium'});
 function showPage(id,btn){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');render()}
 function openModal(html){document.getElementById('modalContent').innerHTML=html;document.getElementById('modal').classList.add('show')}function closeModal(){document.getElementById('modal').classList.remove('show')}
@@ -901,9 +890,11 @@ function rejectHRAction(id){
   a.status='Rejected';a.rejectedBy=u.username;a.rejectedAt=new Date().toISOString();save();log('HR action rejected',`${a.name} — ${a.type}`);render();
 }
 function openHRActionRegister(){
-  let rows=hrActions().slice().reverse();
-  openModal(`<h3>HR Action Register</h3><table><tr><th>Employee</th><th>Action</th><th>Effective</th><th>Status</th><th>Details</th></tr>
-  ${rows.map(a=>`<tr><td>${esc(a.name)}</td><td>${esc(a.type)}</td><td>${a.effectiveDate}</td><td>${esc(a.status)}</td><td>${esc(a.notes||'—')}</td></tr>`).join('')||'<tr><td colspan="5">No HR actions recorded.</td></tr>'}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
+  // The Employee Lifecycle & HR Actions page already shows every HR action with Approve/Reject
+  // right on the page (lifeRows) — this used to pop up a second, separate, read-only copy of the
+  // exact same list. It now just takes you to that page instead of duplicating it in a pop-up.
+  closeModal();
+  navToPage('lifecycle');
 }
 function openEmployeeTimeline(){
   let all=db.employees;
@@ -998,39 +989,18 @@ function openEmployeePortal(){
   <label>Select Employee<select id="portalEmp">${active.map(e=>`<option value="${e.id}">${esc(e.name)} (${esc(e.id)})</option>`).join('')}</select></label>
   <div class="toolbar"><button class="btn primary" onclick="showEmployeePortal(document.getElementById('portalEmp').value)">Open Portal</button><button class="btn secondary" onclick="closeModal()">Close</button></div>`);
 }
-function showEmployeePortal(id){
-  let e=db.employees.find(x=>x.id===id),u=essUserFor(id);
-  if(!e){alert('Employee not found.');return}
-  u.lastAccess=new Date().toISOString();save();closeModal();
-  let salary=salaryForEmployeeAt(id,new Date().toISOString().slice(0,10));
-  let docs=hrDocsFor(id),att=(db.attendance||[]).filter(x=>x.emp===id);
-  let pays=db.payroll?.items?.filter(x=>x.id===id)||[];
-  openModal(`<div class="portal">
-    <div style="border-bottom:2px solid #9db5a8;padding-bottom:10px;margin-bottom:15px">
-      <h2 style="margin:0">${esc(e.name)}</h2><div>${esc(e.id)} · ${esc(e.dept||'—')} · ${esc(e.position||'—')}</div>
-    </div>
-    <div class="grid">
-      <div class="card"><div class="label">Current Monthly Gross</div><div class="metric">${money(salaryGross(salary))}</div></div>
-      <div class="card"><div class="label">Documents</div><div class="metric">${docs.length}</div></div>
-      <div class="card"><div class="label">Attendance Records</div><div class="metric">${att.length}</div></div>
-    </div>
-    <h3>My Payslips</h3>
-    <table><tr><th>Period</th><th>Gross</th><th>Net Pay</th><th>Action</th></tr>
-    ${pays.map(x=>`<tr><td>${esc(db.payroll.displayMonth||db.payroll.month)}</td><td>${money(x.gross)}</td><td>${money(x.netPay)}</td><td><button class="btn secondary" onclick="showPayslip('${esc(id)}')">View</button></td></tr>`).join('')||'<tr><td colspan="4">No payslips currently available.</td></tr>'}</table>
-    <h3>My HR Documents</h3>
-    <table><tr><th>Type</th><th>Reference</th><th>Expiry / Review</th><th>Status</th></tr>
-    ${docs.map(x=>`<tr><td>${esc(x.type)}</td><td>${esc(x.ref||'—')}</td><td>${esc(x.expiry||'—')}</td><td>${esc(x.status)}</td></tr>`).join('')||'<tr><td colspan="4">No document records.</td></tr>'}</table>
-    <div class="toolbar"><button class="btn secondary" onclick="closeModal()">Close Portal</button></div>
-  </div>`);
-}
-function openESSUserManager(){
-  let active=db.employees.filter(e=>e.status==='Active');
-  openModal(`<h3>Employee Portal User Manager</h3><table><tr><th>Employee</th><th>ID</th><th>Enabled</th><th>Last Access</th><th>Action</th></tr>
-  ${active.map(e=>{let u=essUserFor(e.id);return `<tr><td>${esc(e.name)}</td><td>${esc(e.id)}</td><td>${u.enabled?'Enabled':'Disabled'}</td><td>${u.lastAccess?u.lastAccess.slice(0,16).replace('T',' '):'Never'}</td><td><button class="btn secondary" onclick="toggleESSUser('${esc(e.id)}')">${u.enabled?'Disable':'Enable'}</button></td></tr>`}).join('')}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
-}
-function toggleESSUser(id){
-  let u=essUserFor(id);u.enabled=!u.enabled;save();closeModal();render();
-}
+// showEmployeePortal (base version) removed entirely: it was fully dead — overridden twice more further
+// down the file (the V191 rich portal view, itself then patched by a V27 layer for correct payslips),
+// so this original definition could never actually run. Its own logic also read dead fields (db.attendance,
+// db.payroll) left over from the pre-Payroll-Cycles system; harmless only because nothing ever called it,
+// but confusing to leave in place — the REAL, active showEmployeePortal (further down, V191 + V27) already
+// correctly sources attendance from attendanceRecords()/monthlyPresentDays()/yearlyPresentDays() and
+// payslips from allEmployeeCycleLines(), which is what every employee's own portal actually shows.
+// openESSUserManager and toggleESSUser removed: they toggled an "enabled" flag that nothing in the
+// real access path (isPageAllowedV20, permittedCategoriesV20, the server's get_my_portal_state) ever
+// checked, so it could not actually turn anyone's portal access on or off — only Users & Security, or
+// removing the email from Employee Management, does that for real. essUserFor() itself stays, since
+// showEmployeePortal still uses it to record when an admin last previewed someone's portal.
 
 const rolePermissions={
   'Super Admin':['dashboard','employees','hr','compensation','payroll','attendance','leave','payslips','payments','reports','security','ess'],
@@ -1220,9 +1190,8 @@ function openRoleMatrix(){
   <button class="btn secondary" onclick="closeModal()">Close</button>`);
 }
 function openAuditLog(){
-  let logs=(db.auditLog||[]).slice().reverse();
-  openModal(`<h3>Audit Log</h3><table><tr><th>Date / Time</th><th>Event</th><th>Details</th></tr>
-  ${logs.map(x=>`<tr><td>${esc(x.time||'')}</td><td>${esc(x.event||'')}</td><td>${esc(x.details||'')}</td></tr>`).join('')||'<tr><td colspan="3">No audit events recorded.</td></tr>'}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
+  closeModal();
+  navToPage('audit');
 }
 
 function paymentBatches(){db.paymentBatches=db.paymentBatches||[];return db.paymentBatches}
@@ -1754,19 +1723,7 @@ function saveReconciliation(id){
 
 function attendanceRecords(){db.attendanceRecords=db.attendanceRecords||[];return db.attendanceRecords}
 function attendanceStatusOptions(selected){return ['Present','Absent','Half Day','Leave','Public Holiday'].map(s=>`<option ${s===selected?'selected':''}>${s}</option>`).join('')}
-function openAttendanceEntry(){
-  let casual=db.employees.filter(e=>e.status==='Active'&&isCasualEmployee(e));
-  if(!casual.length){alert('No active casual staff found.');return}
-  openModal(`<h3>Record Casual Staff Attendance</h3>
-  <div class="grid">
-    <label>Date<input id="attDate" type="date" value="${todayISO()}"></label>
-    <label>Employee<select id="attEmp">${casual.map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('')}</select></label>
-    <label>Status<select id="attStatus">${attendanceStatusOptions('Present')}</select></label>
-    <label>Notes<input id="attNotes"></label>
-  </div>
-  <p class="label">Present = 1 payable day. Half Day = 0.5 payable day. Absent, Leave and Public Holiday = 0 payable day unless an approved exception is introduced later.</p>
-  <div class="toolbar"><button class="btn primary" onclick="saveAttendanceRecord()">Save Attendance</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>`);
-}
+
 function attendancePayable(status){return status==='Present'?1:status==='Half Day'?0.5:0}
 function monthlyPresentDays(employeeId,yearMonth){
   // yearMonth like '2026-09'. Counts approved attendance only, consistent with what actually drives payroll.
@@ -1785,27 +1742,9 @@ function workingDaysSoFarInMonth(yearMonth){
   for(let d=1;d<=lastDay;d++){const dow=new Date(y,m-1,d).getDay();if(dow!==0)count++;}
   return count;
 }
-function saveAttendanceRecord(){
-  let date=document.getElementById('attDate').value,employeeId=document.getElementById('attEmp').value,status=document.getElementById('attStatus').value,notes=document.getElementById('attNotes').value.trim();
-  if(!date||!employeeId){alert('Date and employee are required.');return}
-  if(attendanceRecords().some(a=>a.date===date&&a.employeeId===employeeId)){alert('Attendance already exists for this employee and date.');return}
-  let e=db.employees.find(x=>x.id===employeeId);
-  attendanceRecords().push({id:'ATT-'+Date.now(),date,employeeId,name:e?.name||'Unknown',status,payableDay:attendancePayable(status),notes,enteredBy:activeSystemUser().username,createdAt:new Date().toISOString(),approvalStatus:'Pending',approvedBy:''});
-  log('Attendance recorded',`${e?.name||employeeId} — ${date} — ${status}`);save();closeModal();render();
-}
-function approveAttendance(id){
-  let a=attendanceRecords().find(x=>x.id===id);if(!a)return;
-  if(!userHasRoleFor('Payroll Review')){alert('Only an authorized reviewer can approve attendance for payroll.');return}
-  if(a.enteredBy===activeSystemUser().username&&!normalizeRoles(activeSystemUser()).includes('Super Admin')){alert('Segregation of duties: the person who entered attendance cannot approve their own attendance record.');return}
-  a.approvalStatus='Approved';a.approvedBy=activeSystemUser().username;a.approvedAt=new Date().toISOString();
-  log('Attendance approved',`${a.id} — ${a.name} — ${a.date}`);save();render();openAttendanceApproval();
-}
-function rejectAttendance(id){
-  let a=attendanceRecords().find(x=>x.id===id);if(!a)return;
-  if(!userHasRoleFor('Payroll Review')){alert('Only an authorized reviewer can reject attendance.');return}
-  a.approvalStatus='Rejected';a.approvedBy=activeSystemUser().username;a.approvedAt=new Date().toISOString();
-  log('Attendance rejected',`${a.id} — ${a.name} — ${a.date}`);save();render();openAttendanceApproval();
-}
+
+
+
 function csvCell(v){return `"${String(v??'').replaceAll('"','""')}"`}
 function downloadAttendanceTemplate(){
   // Pre-filled with EVERY active casual employee marked Present at standard hours, so the workflow
@@ -1945,16 +1884,8 @@ function commitAttendanceImport(){
   save();closeModal();render();
   alert(`Import complete: ${created} new attendance records, ${updated} updated${trackerWritten?`, ${trackerWritten} time-in/out records for overtime`:''}${skippedBadDate?`. ${skippedBadDate} row(s) skipped because their date could not be read.`:''}.`);
 }
-function openAttendanceRegister(){
-  let rows=attendanceRecords().slice().reverse();
-  openModal(`<h3>Attendance Register</h3><table><tr><th>Date</th><th>Employee</th><th>Status</th><th>Payable</th><th>Approval</th><th>Entered By</th></tr>
-  ${rows.map(a=>`<tr><td>${esc(a.date)}</td><td>${esc(a.name)}</td><td>${esc(a.status)}</td><td>${a.payableDay}</td><td>${esc(a.approvalStatus)}</td><td>${esc(a.enteredBy)}</td></tr>`).join('')||'<tr><td colspan="6">No attendance records.</td></tr>'}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
-}
-function openAttendanceApproval(){
-  let rows=attendanceRecords().filter(a=>a.approvalStatus==='Pending');
-  openModal(`<h3>Attendance Approval Queue</h3><table><tr><th>Date</th><th>Employee</th><th>Status</th><th>Payable</th><th>Entered By</th><th>Action</th></tr>
-  ${rows.map(a=>`<tr><td>${esc(a.date)}</td><td>${esc(a.name)}</td><td>${esc(a.status)}</td><td>${a.payableDay}</td><td>${esc(a.enteredBy)}</td><td><button class="btn primary" onclick="approveAttendance('${esc(a.id)}')">Approve</button> <button class="btn secondary" onclick="rejectAttendance('${esc(a.id)}')">Reject</button></td></tr>`).join('')||'<tr><td colspan="6">No attendance awaiting approval.</td></tr>'}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
-}
+
+
 function approvedPayableDays(employeeId,start,end){
   return attendanceRecords().filter(a=>a.employeeId===employeeId&&a.date>=start&&a.date<=end&&a.approvalStatus==='Approved').reduce((n,a)=>n+Number(a.payableDay||0),0);
 }
@@ -2010,10 +1941,10 @@ renderSecurityUsers();
 
 let eu=essUsers(),activeESS=db.employees.filter(e=>e.status==='Active');
 let pendingESS=(db.leaves||[]).filter(x=>x.source==='Employee Portal'&&x.status==='Pending').length;
-document.getElementById('essUsers').textContent=Object.values(eu).filter(x=>x.enabled).length;
+document.getElementById('essUsers').textContent=activeESS.filter(e=>String(e.email||'').trim()).length;
 document.getElementById('essPayslips').textContent=(typeof window.currentPayrollItems==='function'?window.currentPayrollItems().length:0);
 document.getElementById('essPending').textContent=pendingESS;
-document.getElementById('essRows').innerHTML=activeESS.map(e=>{let u=essUserFor(e.id);return `<tr><td>${esc(e.name)}</td><td>${esc(e.id)}</td><td>${u.enabled?'Enabled':'Disabled'}</td><td>${u.lastAccess?u.lastAccess.slice(0,16).replace('T',' '):'Never'}</td><td><button class="btn secondary" onclick="showEmployeePortal('${esc(e.id)}')">View Portal</button></td></tr>`}).join('');
+document.getElementById('essRows').innerHTML=activeESS.map(e=>{let u=essUserFor(e.id),linked=!!String(e.email||'').trim();return `<tr><td>${esc(e.name)}</td><td>${esc(e.id)}</td><td>${linked?'Linked ('+esc(e.email)+')':'No email on record'}</td><td>${u.lastAccess?'Previewed '+u.lastAccess.slice(0,16).replace('T',' '):'Not previewed yet'}</td><td><button class="btn secondary" onclick="showEmployeePortal('${esc(e.id)}')">View Portal</button></td></tr>`}).join('');
 
 
 let sc=salaryChanges(),currentPeriod=new Date().toISOString().slice(0,7);
@@ -3128,7 +3059,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     <div class="card"><div class="toolbar">
       <label>Site<select id="wtsSite" onchange="renderWeeklyTimesheet()"></select></label>
       <label>Search Employee<input id="wtsEmpSearch" placeholder="Type a name…" autocomplete="off" oninput="renderWeeklyTimesheet()"></label>
-      <label>Week Starting<input type="date" id="wtsWeekStart" onchange="renderWeeklyTimesheet()"></label>
+      <label>Week Starting<input type="date" id="wtsWeekStart" onchange="this.value=weekMondayISO(this.value);renderWeeklyTimesheet()"></label>
       <button class="btn primary" onclick="openWtsBulkUpload()">Bulk Upload Timesheet</button>
       <button class="btn secondary" onclick="downloadWtsWeekSummary()">Download This Week's Summary</button>
       <button class="btn secondary" onclick="downloadBlankWeeklyTimesheet()">Print / Download This Week's Sheet</button>
@@ -3149,12 +3080,13 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     d.setDate(d.getDate()+diff);
     return d.toISOString().slice(0,10);
   }
+  // Exposed on window: the "Week Starting" field's inline onchange runs in global scope, not in this
+  // closure, so it needs a real global reference to snap whatever date was picked to that week's Monday.
+  window.weekMondayISO=weekMondayISO;
   function weekDatesFromMonday(startISO){
-    // Computes 6 WORKING days from the given start date, always skipping Sunday — not simply 6
-    // consecutive calendar days. Every site sheet reviewed treats Sunday as a rest day (shown
-    // crossed out or omitted entirely), so a start date of e.g. a Tuesday correctly produces
-    // Tue/Wed/Thu/Fri/Sat/Mon, matching how the sites actually report a week, rather than
-    // Tue..Sun which would wrongly include the day nobody works.
+    // startISO is always a Monday (the Week Starting picker snaps to it). Returns the six working
+    // days of that Monday-through-Sunday week — Monday to Saturday — skipping Sunday, which is
+    // deliberately not a checkbox day at all: it stays the separate "Plus1" extra-day entry.
     const d=new Date(startISO+'T00:00:00'),dates=[];
     let cursor=new Date(d);
     while(dates.length<6){
@@ -3187,12 +3119,13 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       if(previousValue&&(previousValue==='__ALL__'||sites.includes(previousValue)))siteSel.value=previousValue;
     }
     if(!document.getElementById('wtsWeekStart').value){
-      // A sensible starting default only — once a date is actually picked, it's used exactly as
-      // given, not forced back to a calendar Monday. Sites don't all report on a strict Mon-Sat
-      // cycle (several of these track Tue-through-Mon instead), so the picker needs to accept
-      // whatever day the real weekly cutoff actually falls on.
       document.getElementById('wtsWeekStart').value=weekMondayISO(todayV19());
     }
+    // Standard week, every site: Monday through Sunday. Whatever date is picked in "Week Starting" is
+    // snapped to that week's Monday (see the input's onchange above) before ever reaching here, so this
+    // is always a Monday by the time it's used — weekDatesFromMonday() below then lays out the six
+    // working-day columns Monday-Saturday; Sunday is deliberately not one of them and stays the
+    // "Plus1" extra-day entry, exactly as before.
     const start=document.getElementById('wtsWeekStart').value;
     if(!wtsDayDates||wtsDayDates[0]!==start){
       wtsDayDates=weekDatesFromMonday(start);
