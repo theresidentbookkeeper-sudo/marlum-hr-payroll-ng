@@ -3079,45 +3079,46 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   if(!document.getElementById('weeklyTimesheet')){
     const wsec=document.createElement('section');
     wsec.id='weeklyTimesheet';wsec.className='page';
-    wsec.innerHTML=`<div class="v19-section-head"><div><h2>Weekly Timesheet</h2><div class="label">A simple weekly attendance sheet for casual staff, by site — this replaces the paper timesheet until biometric devices are introduced. No clock in/out, just marking each working day present. Marlum's week runs Tuesday through Monday, with Sunday never a regular column — Sunday work is recorded as "Plus1" in Extra Hr/day instead.</div></div></div>
+    wsec.innerHTML=`<div class="v19-section-head"><div><h2>Weekly Timesheet</h2><div class="label">A simple weekly attendance sheet for casual staff, by site — this replaces the paper timesheet until biometric devices are introduced. No clock in/out, just marking each working day present. Marlum's week runs Tuesday through Monday, with Sunday never a regular column — Sunday work is recorded as "Plus1" in Extra Hr/day instead. Pick any date and the sheet snaps to that week's Tuesday.</div></div></div>
     <div class="card"><div class="toolbar">
       <label>Site<select id="wtsSite" onchange="renderWeeklyTimesheet()"></select></label>
       <label>Search Employee<input id="wtsEmpSearch" placeholder="Type a name…" autocomplete="off" oninput="renderWeeklyTimesheet()"></label>
-      <label>Week Starting<input type="date" id="wtsWeekStart" onchange="this.value=weekMondayISO(this.value);renderWeeklyTimesheet()"></label>
+      <label>Week Starting<input type="date" id="wtsWeekStart" onchange="if(this.value)this.value=weekTuesdayISO(this.value);renderWeeklyTimesheet()"></label>
       <button class="btn primary" onclick="openWtsBulkUpload()">Bulk Upload Timesheet</button>
       <button class="btn secondary" onclick="downloadWtsWeekSummary()">Download This Week's Summary</button>
       <button class="btn secondary" onclick="downloadBlankWeeklyTimesheet()">Print / Download This Week's Sheet</button>
       <button class="btn danger" onclick="clearWtsWeek()">Clear This Week's Attendance</button>
     </div>
+    <div id="wtsWeekLabel" class="label" style="margin:6px 0 10px;font-weight:700"></div>
     <div id="wtsFlags"></div>
     <div id="wtsTableWrap"></div>
     </div>`;
     document.querySelector('main')?.appendChild(wsec);
   }
 
-  // A date can land on a WEEKDAY boundary in either direction — this always resolves to the
-  // Monday of that same week regardless of which day of the week was picked.
-  function weekMondayISO(anyDateISO){
-    const d=new Date(anyDateISO+'T00:00:00');
-    const day=d.getDay();
-    const diff=(day===0?-6:1-day);
-    d.setDate(d.getDate()+diff);
+  // Marlum's pay week runs Tuesday through the following Monday. Whatever date is picked is snapped
+  // to the Tuesday on or before it, so a Monday or Sunday pick lands in the week that contains it.
+  // All date arithmetic is done in UTC on purpose: building a local-midnight Date and then calling
+  // toISOString() shifts the date back a day for anyone east of UTC (Nigeria, UTC+1), which is what
+  // made the columns appear to "rearrange" the calendar.
+  function addDaysISO(iso,n){
+    const d=new Date(iso+'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate()+n);
     return d.toISOString().slice(0,10);
   }
-  // Exposed on window: the "Week Starting" field's inline onchange runs in global scope, not in this
-  // closure, so it needs a real global reference to snap whatever date was picked to that week's Monday.
-  window.weekMondayISO=weekMondayISO;
-  function weekDatesFromMonday(startISO){
-    // startISO is always a Monday (the Week Starting picker snaps to it). Returns the six working
-    // days of that Monday-through-Sunday week — Monday to Saturday — skipping Sunday, which is
-    // deliberately not a checkbox day at all: it stays the separate "Plus1" extra-day entry.
-    const d=new Date(startISO+'T00:00:00'),dates=[];
-    let cursor=new Date(d);
-    while(dates.length<6){
-      if(cursor.getDay()!==0)dates.push(cursor.toISOString().slice(0,10));
-      cursor.setDate(cursor.getDate()+1);
-    }
-    return dates;
+  function weekTuesdayISO(anyDateISO){
+    const day=new Date(anyDateISO+'T00:00:00Z').getUTCDay();
+    return addDaysISO(anyDateISO,-((day-2+7)%7));
+  }
+  window.weekTuesdayISO=weekTuesdayISO;
+  // From the Tuesday: Tue, Wed, Thu, Fri, Sat (+0..+4) and the closing Monday (+6). Sunday (+5) is
+  // deliberately not a checkbox column — it stays the separate "Plus1" extra-day entry.
+  function weekDatesFromTuesday(startISO){
+    return [0,1,2,3,4,6].map(n=>addDaysISO(startISO,n));
+  }
+  const WTS_DAY_NAMES=['Tuesday','Wednesday','Thursday','Friday','Saturday','Monday'];
+  function wtsFmt(iso){
+    return new Date(iso+'T00:00:00Z').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
   }
   let wtsDayDates=null;
   window.updateWtsDayDate=function(i,value){
@@ -3143,17 +3144,19 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       if(previousValue&&(previousValue==='__ALL__'||sites.includes(previousValue)))siteSel.value=previousValue;
     }
     if(!document.getElementById('wtsWeekStart').value){
-      document.getElementById('wtsWeekStart').value=weekMondayISO(todayV19());
+      document.getElementById('wtsWeekStart').value=weekTuesdayISO(todayV19());
     }
-    // Standard week, every site: Monday through Sunday. Whatever date is picked in "Week Starting" is
-    // snapped to that week's Monday (see the input's onchange above) before ever reaching here, so this
-    // is always a Monday by the time it's used — weekDatesFromMonday() below then lays out the six
-    // working-day columns Monday-Saturday; Sunday is deliberately not one of them and stays the
-    // "Plus1" extra-day entry, exactly as before.
-    const start=document.getElementById('wtsWeekStart').value;
+    // Standard week, every site: Tuesday through the following Monday. The picker snaps to a Tuesday
+    // before ever reaching here; the six columns are then Tue-Sat plus the closing Monday, and Sunday
+    // stays the "Plus1" extra-day entry.
+    const picked=document.getElementById('wtsWeekStart').value;
+    const start=weekTuesdayISO(picked);
+    if(picked!==start)document.getElementById('wtsWeekStart').value=start;
     if(!wtsDayDates||wtsDayDates[0]!==start){
-      wtsDayDates=weekDatesFromMonday(start);
+      wtsDayDates=weekDatesFromTuesday(start);
     }
+    const lbl=document.getElementById('wtsWeekLabel');
+    if(lbl)lbl.textContent=`Week: ${wtsFmt(wtsDayDates[0])} to ${wtsFmt(wtsDayDates[5])} — Sunday ${wtsFmt(addDaysISO(wtsDayDates[0],5))} is the Plus1 day`;
     renderWtsTableBody();
     renderWtsFlags();
   };
@@ -3171,9 +3174,9 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     const showAll=site==='__ALL__';
     const q=(document.getElementById('wtsEmpSearch')?.value||'').trim().toLowerCase();
     const staff=activeEmployees().filter(isCasualV19).filter(e=>showAll||(e.dept||'Unassigned')===site).filter(e=>!q||e.name.toLowerCase().includes(q)||String(e.id).includes(q)).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
-    const dayNames=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const dayNames=WTS_DAY_NAMES;
     const weekStart=wtsDayDates[0];
-    document.getElementById('wtsTableWrap').innerHTML=`<table><thead><tr><th>S/N</th><th>Employee ID</th><th>Employee Name</th>${showAll?'<th>Site</th>':''}${dayNames.map((d,i)=>`<th>${d}<br><input type="date" value="${wtsDayDates[i]}" onchange="updateWtsDayDate(${i},this.value)" style="font-size:10px;padding:3px;margin-top:4px;width:125px"></th>`).join('')}<th>Extra Hr/day</th></tr></thead><tbody>
+    document.getElementById('wtsTableWrap').innerHTML=`<table><thead><tr><th>S/N</th><th>Employee ID</th><th>Employee Name</th>${showAll?'<th>Site</th>':''}${dayNames.map((d,i)=>`<th>${d}<br><input type="date" value="${wtsDayDates[i]}" onchange="updateWtsDayDate(${i},this.value)" style="font-size:10px;padding:3px;margin-top:4px;width:125px"></th>`).join('')}<th>Extra Hr/day<br><span style="font-weight:400;font-size:10px">Sun ${wtsDayDates[0]?addDaysISO(wtsDayDates[0],5):''} = Plus1</span></th></tr></thead><tbody>
     ${staff.map((e,idx)=>{
       const cells=wtsDayDates.map(d=>{
         const rec=attendanceRecords().find(a=>a.employeeId===e.id&&a.date===d);
@@ -3243,7 +3246,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   }
 
   // ---- Bulk upload for the Weekly Timesheet: reads a file laid out exactly like the sheet on
-  // screen (S/N, Employee ID, Employee Name, Monday..Saturday, Extra Hr/day) rather than the older
+  // screen (S/N, Employee ID, Employee Name, Tuesday..Saturday, Monday, Extra Hr/day) rather than the older
   // one-row-per-date format, and applies it to whichever week is currently selected — matching the
   // workflow of picking a week, uploading that week's sheet, then reviewing it live in the grid.
   // The separate "Download Upload Template" button (both here and on the main toolbar) was removed
@@ -3257,7 +3260,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     <label>CSV File<input id="wtsUploadFile" type="file" accept=".csv" onchange="handleWtsFileSelect(this)"></label>
     <div id="wtsUploadPreview" style="margin-top:12px"></div>
     <div class="toolbar"><button class="btn primary" id="wtsUploadCommitBtn" onclick="commitWtsUpload()" disabled>Upload &amp; Show on Screen</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>
-    <p class="label">Columns: S/N (ignored), Employee ID (preferred) or Employee Name, Monday through Saturday (any mark in a day's cell means present that day — leave blank for a day off), Extra Hr/day (Plus1 for a full extra day — this is also how Sunday work is recorded, since Sunday is never one of the six regular columns — or a number of extra hours).</p>`);
+    <p class="label">Columns: S/N (ignored), Employee ID (preferred) or Employee Name, Tuesday, Wednesday, Thursday, Friday, Saturday and Monday (the Monday that closes the week; any mark in a day's cell means present that day — leave blank for a day off), Extra Hr/day (Plus1 for a full extra day — this is also how Sunday work is recorded, since Sunday is never one of the six regular columns — or a number of extra hours).</p>`);
   };
   window.handleWtsFileSelect=function(input){
     let file=input.files&&input.files[0];if(!file)return;
@@ -3270,10 +3273,10 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
         let header=rows[0].map(h=>h.toLowerCase().trim());
         let idIdx=header.findIndex(h=>h.includes('employee id')||h==='id');
         let nameIdx=header.findIndex(h=>h.includes('name'));
-        let dayIdx=['monday','tuesday','wednesday','thursday','friday','saturday'].map(d=>header.findIndex(h=>h.startsWith(d)));
+        let dayIdx=['tuesday','wednesday','thursday','friday','saturday','monday'].map(d=>header.findIndex(h=>h.startsWith(d)));
         let extraIdx=header.findIndex(h=>h.includes('extra'));
         if(idIdx===-1&&nameIdx===-1){alert('Could not find an Employee ID or Employee Name column. Check the file matches the expected columns (see the note at the bottom of the upload screen).');return}
-        if(dayIdx.includes(-1)){alert('Could not find all six day columns (Monday through Saturday). Check the exact column headers against the expected format.');return}
+        if(dayIdx.includes(-1)){alert('Could not find all six day columns (Tuesday, Wednesday, Thursday, Friday, Saturday and Monday). Check the exact column headers against the expected format.');return}
         const dataRows=rows.slice(1).filter(r=>r.some(c=>c));
         if(!dataRows.length){alert('The file has a header row but no data rows underneath it.');return}
         wtsUploadRows=dataRows.map(r=>{
@@ -3297,7 +3300,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     let matched=wtsUploadRows.filter(r=>r.matched).length,unmatched=wtsUploadRows.length-matched;
     let totalMarks=wtsUploadRows.filter(r=>r.matched).reduce((s,r)=>s+r.dayMarks.filter(Boolean).length,0);
     let badExtra=wtsUploadRows.filter(r=>r.extraRaw&&r.extraParsed&&r.extraParsed.type==='invalid').length;
-    const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
+    const dayNames=['Tue','Wed','Thu','Fri','Sat','Mon'];
     // Duplicate detection: the same employee appearing more than once is normal at Marlum — staff
     // sometimes transfer between sites mid-week, so their days get split across two rows. Those
     // rows are now correctly unioned on commit rather than one overwriting the other. Only flag it
@@ -3415,7 +3418,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     const site=document.getElementById('wtsSite').value;
     const showAll=site==='__ALL__';
     const staff=activeEmployees().filter(isCasualV19).filter(e=>showAll||(e.dept||'Unassigned')===site).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
-    const monday=wtsDayDates?wtsDayDates[0]:weekMondayISO(todayV19());
+    const monday=wtsDayDates?wtsDayDates[0]:weekTuesdayISO(todayV19());
     const w=window.open('','_blank');
     w.document.write(`<!doctype html><html><head><title>Marlum Timesheet — ${escV19(showAll?'All Sites':site)}</title><style>
       @media print{tr{page-break-inside:avoid}}</style><style>
@@ -3428,8 +3431,8 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       td.name{text-align:left;font-weight:600}
     </style></head><body>
     <div class="head"><div><h1>Marlum Nigeria Ltd</h1><div class="sub">CONSTRUCTION WORKFORCE</div></div></div>
-    <h2>TIMESHEET — ${escV19(showAll?'All Sites':site)} — Week of ${monday}</h2>
-    <table><tr><th>S/N</th><th>Employee ID</th><th>Employee Name</th>${showAll?'<th>Site</th>':''}<th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Extra Hr/day</th></tr>
+    <h2>TIMESHEET — ${escV19(showAll?'All Sites':site)} — Week ${monday} to ${wtsDayDates?wtsDayDates[5]:addDaysISO(monday,6)}</h2>
+    <table><tr><th>S/N</th><th>Employee ID</th><th>Employee Name</th>${showAll?'<th>Site</th>':''}<th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Mon</th><th>Extra Hr/day</th></tr>
     ${staff.map((e,i)=>`<tr><td>${i+1}</td><td>${escV19(e.id)}</td><td class="name">${escV19(e.name)}</td>${showAll?`<td>${escV19(e.dept||'Unassigned')}</td>`:''}<td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('')}
     </table>
     <p style="font-size:11px;color:#2c6b4a;margin-top:14px">Extra Hr/day: write "Plus1" for a full extra day worked beyond the normal week (this is also how Sunday work is recorded — Marlum's week runs Tuesday through Monday with Sunday itself always paid as this extra day, never as one of the six regular columns), or a number of extra hours worked.</p>
