@@ -1461,6 +1461,26 @@ function payrollCycles(){db.payrollCycles=db.payrollCycles||[];return db.payroll
 function cycleTypeLabel(t){return t==='weekly_casual'?'Weekly Casual':'Monthly Fixed'}
 function isCasualEmployee(e){return String(e.employmentType||e.staffType||e.salaryType||'').toLowerCase().includes('casual') || e.payFrequency==='Weekly'}
 function employeePayFrequency(e){return isCasualEmployee(e)?'Weekly':'Monthly'}
+// A fixed-salary person who is also paid weekly from the company wages workbook (one ID, both pay
+// types) carries alsoWeekly:true. They stay in the monthly run as fixed staff and are also eligible
+// for the weekly casual run and the Weekly Timesheet.
+function isWeeklyEligible(e){return isCasualEmployee(e)||e.alsoWeekly===true}
+// What one weekly-timesheet entry pays: Plus1 is a full day at the daily rate, hours are paid at the
+// straight hourly rate (daily / standard hours - the wages workbook pays no overtime premium) and
+// amount is a flat naira figure taken from the workbook.
+function weeklyExtraPay(x,daily,hourly){
+  const plus1=x.plus1===true||x.type==='plus1';
+  const hours=(x.type==='hours'||x.type==='combo')?Number(x.hours||0):0;
+  return {plus1,hours,amount:Number(x.amount||0),pay:(plus1?Number(daily||0):0)+hours*Number(hourly||0)+Number(x.amount||0)};
+}
+function weeklyExtraLabel(x){
+  const bits=[];
+  if(x.plus1===true||x.type==='plus1')bits.push('Plus1');
+  if((x.type==='hours'||x.type==='combo')&&Number(x.hours||0))bits.push(String(Number(x.hours)));
+  if(Number(x.amount||0))bits.push('N'+Number(x.amount));
+  return bits.join('+');
+}
+function weeklyBookingFor(empId,start,end){return (db.weeklyBookings||[]).find(b=>b.employeeId===empId&&b.weekStart>=start&&b.weekStart<=end)}
 function openNewPayrollCycle(){
   if(!userHasRoleFor('Payroll Preparation')){alert(CYCLE_VIEW_ONLY_MSG);return}
   closeModal();
@@ -1486,7 +1506,7 @@ function createPayrollCycle(){
     if(d<1||d>7){alert('A weekly casual payroll period must contain 1–7 days.');return}
   }
   if(payrollCycles().some(c=>c.type===type&&c.start===start&&c.end===end)){alert('This payroll cycle already exists.');return}
-  let employees=db.employees.filter(e=>e.status==='Active'&&(type==='weekly_casual'?isCasualEmployee(e):!isCasualEmployee(e)));
+  let employees=db.employees.filter(e=>e.status==='Active'&&(type==='weekly_casual'?isWeeklyEligible(e):!isCasualEmployee(e)));
   if(type==='weekly_casual'){
     // Only include casual staff who actually have an attendance record (Present or Half Day) for
     // this specific period — this is a weekly cycle built from whatever timesheet was uploaded for
@@ -1515,7 +1535,7 @@ function isBlankOrPlaceholder(v){
 function hasIncompleteBankDetails(x){
   return isBlankOrPlaceholder(x.accountNumber)||isBlankOrPlaceholder(x.bankName)||isBlankOrPlaceholder(x.accountName)||!resolveBankCode(x.bankName);
 }
-function cycleOvertimePay(empId,start,end,hourlyRate,dailyRate){
+function cycleOvertimePay(empId,start,end,hourlyRate,dailyRate,weekly){
   // Overtime is drawn from Time Sheet clock-in/out records. Explicitly rejected time sheets are
   // excluded; anything not yet reviewed is still included (Time Sheet approval is currently only
   // generated for the current day, so requiring approval for a whole pay period would silently
@@ -1524,14 +1544,17 @@ function cycleOvertimePay(empId,start,end,hourlyRate,dailyRate){
   const hours=(db.timeTrackerRecords||[]).filter(r=>r.emp===empId&&r.date>=start&&r.date<=end&&r.approvalStatus!=='Rejected').reduce((s,r)=>s+Number(r.overtimeHours||0),0);
   const otMult=Number(db.timeTrackerSettings?.overtimeMultiplier||1.5);
   let pay=hours*Number(hourlyRate||0)*otMult;
-  // Weekly Timesheet "Extra Hr/day" column: "Plus1" means a full extra day worked beyond the
-  // normal week, paid at the employee's straight daily rate (a whole day isn't an hourly-overtime
-  // concept, so no multiplier applies here). A number means that many extra hours, paid the same
-  // way as Time Sheet overtime (hourly rate x the overtime multiplier), for consistency.
+  // Weekly Timesheet "Extra Hr/day" column (weekly casual runs only, so a person who is also paid
+  // weekly is never paid the same extras again in the monthly run): "Plus1" is a full extra day at
+  // the straight daily rate, a number is extra hours at the straight hourly rate, and N<amount> is a
+  // flat naira figure from the wages workbook. They can be combined, e.g. Plus1+3+N500.
   let extraHours=0,extraPay=0,extraNotes=[];
-  (db.weeklyExtras||[]).filter(x=>x.employeeId===empId&&x.weekStart>=start&&x.weekStart<=end).forEach(x=>{
-    if(x.type==='plus1'){extraPay+=Number(dailyRate||0);extraNotes.push('+1 day');}
-    else if(x.type==='hours'){const h=Number(x.hours||0);extraHours+=h;extraPay+=h*Number(hourlyRate||0)*otMult;extraNotes.push(`+${h}h`);}
+  if(weekly)(db.weeklyExtras||[]).filter(x=>x.employeeId===empId&&x.weekStart>=start&&x.weekStart<=end).forEach(x=>{
+    const w=weeklyExtraPay(x,dailyRate,hourlyRate);
+    extraHours+=w.hours;extraPay+=w.pay;
+    if(w.plus1)extraNotes.push('+1 day');
+    if(w.hours)extraNotes.push(`+${w.hours}h`);
+    if(w.amount)extraNotes.push(`+₦${w.amount}`);
   });
   return {hours:hours+extraHours,pay:pay+extraPay,extraPay,extraNote:extraNotes.join(', ')};
 }
@@ -1541,14 +1564,20 @@ function calculateCycleEmployee(e,type,start,end,cycleId){
   const bonus=adj.filter(a=>a.type==='Bonus').reduce((s,a)=>s+Number(a.amount||0),0);
   const otherDeduction=adj.filter(a=>a.type==='Deduction').reduce((s,a)=>s+Number(a.amount||0),0);
   const loan=(db.loans||[]).find(l=>l.emp===e.id&&l.status==='Active');
-  const scheduledLoanRepayment=loan?Math.min(Number(loan.monthlyDeduction||0),Number(loan.outstanding||0)):0;
+  // A fixed-salary person's loan instalment is a monthly figure, so it is only taken in the monthly run,
+  // not in the weekly run they are also paid in.
+  const loanIsMonthly=type==='weekly_casual'&&e.alsoWeekly===true&&!isCasualEmployee(e);
+  const scheduledLoanRepayment=(loan&&!loanIsMonthly)?Math.min(Number(loan.monthlyDeduction||0),Number(loan.outstanding||0)):0;
   if(type==='weekly_casual'){
     let days=Math.floor((new Date(end)-new Date(start))/86400000)+1;
-    let daily=Number(e.dailyRate||e.ratePerDay||e.basicDaily||e.basic||0);
+    // The rate and site the wages workbook gave for this specific week win over the employee's
+    // current record, so each payroll run follows its own week's workbook.
+    const booking=weeklyBookingFor(e.id,start,end);
+    let daily=Number(booking&&Number(booking.rate)>0?booking.rate:(e.dailyRate||e.ratePerDay||e.basicDaily||e.basic||0));
     let payableDays=approvedPayableDays(e.id,start,end);
     let base=daily*payableDays;
     const hourly=std?daily/std:0;
-    const ot=cycleOvertimePay(e.id,start,end,hourly,daily);
+    const ot=cycleOvertimePay(e.id,start,end,hourly,daily,true);
     const gross=base+ot.pay+bonus;
     // A loan repayment can never take more than the person actually earned this period. Capping
     // only the resulting NET pay at zero (further down) isn't enough on its own — without this,
@@ -1559,12 +1588,12 @@ function calculateCycleEmployee(e,type,start,end,cycleId){
     const loanRepayment=Math.min(scheduledLoanRepayment,Math.max(0,gross-otherDeduction));
     const deductions=otherDeduction+loanRepayment;
     const netPay=Math.max(0,gross-deductions);
-    return {id:e.id,name:e.name,dailyRate:daily,payableDays,overtimeHours:ot.hours,overtimePay:ot.pay,bonus,deduction:otherDeduction,loanRepayment,gross,netPay,bankName:e.bankName||e.bank||'',accountName:e.accountName||e.bankAccountName||e.name||'',accountNumber:e.accountNumber||e.bankAccountNumber||'',status:'Pending'};
+    return {id:e.id,name:e.name,workSite:(booking&&booking.site)||e.dept||'',dailyRate:daily,payableDays,overtimeHours:ot.hours,overtimePay:ot.pay,bonus,deduction:otherDeduction,loanRepayment,gross,netPay,bankName:e.bankName||e.bank||'',accountName:e.accountName||e.bankAccountName||e.name||'',accountNumber:e.accountNumber||e.bankAccountNumber||'',status:'Pending'};
   }
   let s=salaryForEmployeeAt(e.id,end),base=salaryGross(s);
   const monthlyWorkingDays=Number(db.payrollSettings?.monthlyWorkingDays||26);
   const hourly=(std&&monthlyWorkingDays)?(base/monthlyWorkingDays)/std:0;
-  const ot=cycleOvertimePay(e.id,start,end,hourly);
+  const ot=cycleOvertimePay(e.id,start,end,hourly,0,false);
   const gross=base+ot.pay+bonus;
   const loanRepayment=Math.min(scheduledLoanRepayment,Math.max(0,gross-otherDeduction));
   const deductions=otherDeduction+loanRepayment;
@@ -2970,6 +2999,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   const todayV19=()=>new Date().toISOString().slice(0,10);
   const timeNowV19=()=>new Date().toTimeString().slice(0,5);
   const isCasualV19=e=>String(e.employmentType||'').toLowerCase()==='casual';
+  const isWeeklySheetV19=e=>isCasualV19(e)||e.alsoWeekly===true; // people on the Weekly Timesheet: casual staff plus fixed staff also paid weekly
   const isFixedV19=e=>String(e.employmentType||'').toLowerCase()==='fixed salary';
   const activeEmployees=()=>db.employees.filter(e=>(e.status||e.employmentStatus)==='Active');
 
@@ -3126,7 +3156,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   };
   window.renderWeeklyTimesheet=function(){
     const siteSel=document.getElementById('wtsSite');
-    const sites=[...new Set(activeEmployees().filter(isCasualV19).map(e=>e.dept||'Unassigned'))].sort();
+    const sites=[...new Set(activeEmployees().filter(isWeeklySheetV19).map(e=>e.dept||'Unassigned'))].sort();
     const sitesKey=sites.join('|');
     if(siteSel.dataset.sitesKey!==sitesKey){
       // Rebuilds whenever the actual set of sites in use has changed — a department edit, a newly
@@ -3158,19 +3188,31 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     renderWtsFlags();
   };
   function weeklyExtras(){db.weeklyExtras=db.weeklyExtras||[];return db.weeklyExtras}
+  // Extra column grammar: Plus1 (a full extra day), a number (extra hours), N<amount> (a flat naira
+  // amount from the wages workbook), or any of them joined with +, e.g. Plus1+3 or Plus1+3+N500.
   function parseWtsExtra(raw){
     const v=String(raw||'').trim();
     if(!v)return null;
-    if(/^plus\s*1$/i.test(v))return{type:'plus1'};
-    const n=Number(v);
-    if(!isNaN(n)&&n>0)return{type:'hours',hours:n};
-    return{type:'invalid'};
+    let plus1=false,hours=0,amount=0;
+    for(const part of v.split('+').map(t=>t.trim())){
+      let m;
+      if(/^plus\s*1$/i.test(part)){if(plus1)return{type:'invalid'};plus1=true;}
+      else if((m=part.match(/^(?:n|₦)\s*(\d+(?:\.\d+)?)$/i))&&Number(m[1])>0)amount+=Number(m[1]);
+      else if(/^\d+(?:\.\d+)?$/.test(part)&&Number(part)>0)hours+=Number(part);
+      else return{type:'invalid'};
+    }
+    const kinds=(plus1?1:0)+(hours?1:0)+(amount?1:0);
+    const type=kinds>1?'combo':plus1?'plus1':hours?'hours':'amount';
+    return{type,plus1,hours,amount};
+  }
+  function wtsExtraEntry(parsed,raw,e,weekStart,idPrefix){
+    return{id:idPrefix+Date.now()+'-'+Math.random().toString(36).slice(2,6),employeeId:e.id,name:e.name,weekStart,type:parsed.type,plus1:parsed.plus1===true,hours:parsed.hours||0,amount:parsed.amount||0,rawValue:raw,enteredBy:activeSystemUser().username,createdAt:new Date().toISOString()};
   }
   function renderWtsTableBody(){
     const site=document.getElementById('wtsSite').value;
     const showAll=site==='__ALL__';
     const q=(document.getElementById('wtsEmpSearch')?.value||'').trim().toLowerCase();
-    const staff=activeEmployees().filter(isCasualV19).filter(e=>showAll||(e.dept||'Unassigned')===site).filter(e=>!q||e.name.toLowerCase().includes(q)||String(e.id).includes(q)).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
+    const staff=activeEmployees().filter(isWeeklySheetV19).filter(e=>showAll||(e.dept||'Unassigned')===site).filter(e=>!q||e.name.toLowerCase().includes(q)||String(e.id).includes(q)).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
     const dayNames=WTS_DAY_NAMES;
     const weekStart=wtsDayDates[0];
     document.getElementById('wtsTableWrap').innerHTML=`<table class="wts-table"><thead><tr><th>S/N</th><th>Employee ID</th><th>Employee Name</th>${showAll?'<th>Site</th>':''}${dayNames.map((d,i)=>`<th>${d}<br><input type="date" class="wts-date" value="${wtsDayDates[i]}" onchange="updateWtsDayDate(${i},this.value)"></th>`).join('')}<th>Extra Hr/day<br><span style="font-weight:400;font-size:10px">Sun ${wtsDayDates[0]?addDaysISO(wtsDayDates[0],5):''} = Plus1</span></th></tr></thead><tbody>
@@ -3181,7 +3223,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
         return `<td class="wts-day"><input type="checkbox" data-emp="${escV19(e.id)}" data-date="${d}" ${checked?'checked':''} onchange="toggleWtsCell(this)"></td>`;
       }).join('');
       const existingExtra=weeklyExtras().find(x=>x.employeeId===e.id&&x.weekStart===weekStart);
-      const extraVal=existingExtra?(existingExtra.type==='plus1'?'Plus1':existingExtra.hours):'';
+      const extraVal=existingExtra?weeklyExtraLabel(existingExtra):'';
       return `<tr><td>${idx+1}</td><td>${escV19(e.id)}</td><td>${escV19(e.name)}</td>${showAll?`<td>${escV19(e.dept||'Unassigned')}</td>`:''}${cells}<td><input type="text" data-emp="${escV19(e.id)}" value="${escV19(extraVal)}" placeholder="Plus1 / hrs" onchange="updateWtsExtra(this)" class="wts-extra"></td></tr>`;
     }).join('')||`<tr><td colspan="${showAll?11:10}">No casual staff found${showAll?'':' for this site'}.</td></tr>`}
     </tbody></table>`;
@@ -3197,11 +3239,11 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
       save();return;
     }
     if(parsed.type==='invalid'){
-      alert('Enter either "Plus1" for one extra full day, or a number of extra hours (e.g. 3 or 2.5).');
-      el.value=existingIdx>-1?(db.weeklyExtras[existingIdx].type==='plus1'?'Plus1':db.weeklyExtras[existingIdx].hours):'';
+      alert('Enter "Plus1" for one extra full day, a number of extra hours (e.g. 3 or 2.5), N followed by a flat amount (e.g. N1500), or combine them with + (e.g. Plus1+3).');
+      el.value=existingIdx>-1?weeklyExtraLabel(db.weeklyExtras[existingIdx]):'';
       return;
     }
-    const entry={id:'WEX-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),employeeId:empId,name:e.name,weekStart,type:parsed.type,hours:parsed.hours||0,rawValue:el.value,enteredBy:activeSystemUser().username,createdAt:new Date().toISOString()};
+    const entry=wtsExtraEntry(parsed,el.value,e,weekStart,'WEX-');
     if(existingIdx>-1)db.weeklyExtras[existingIdx]=entry;else db.weeklyExtras.push(entry);
     log('Weekly extra overtime recorded',`${e.name} — ${weekStart} — ${el.value}`);
     save();
@@ -3257,7 +3299,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     <label>CSV File<input id="wtsUploadFile" type="file" accept=".csv" onchange="handleWtsFileSelect(this)"></label>
     <div id="wtsUploadPreview" style="margin-top:12px"></div>
     <div class="toolbar"><button class="btn primary" id="wtsUploadCommitBtn" onclick="commitWtsUpload()" disabled>Upload &amp; Show on Screen</button><button class="btn secondary" onclick="closeModal()">Cancel</button></div>
-    <p class="label">Columns: S/N (ignored), Employee ID (preferred) or Employee Name, Tuesday, Wednesday, Thursday, Friday, Saturday and Monday (the Monday that closes the week; any mark in a day's cell means present that day — leave blank for a day off), Extra Hr/day (Plus1 for a full extra day — this is also how Sunday work is recorded, since Sunday is never one of the six regular columns — or a number of extra hours).</p>`);
+    <p class="label">Columns: S/N (ignored), Employee ID (preferred) or Employee Name, Tuesday, Wednesday, Thursday, Friday, Saturday and Monday (the Monday that closes the week; any mark in a day's cell means present that day — leave blank for a day off), Extra Hr/day (Plus1 for a full extra day — this is also how Sunday work is recorded, since Sunday is never one of the six regular columns — a number of extra hours, N followed by a flat amount such as N1500, or a combination joined with + such as Plus1+3). Optional columns: Site (where the person worked this week; their home site is unchanged) and Daily Rate (the rate for this week, which also updates their current rate).</p>`);
   };
   window.handleWtsFileSelect=function(input){
     let file=input.files&&input.files[0];if(!file)return;
@@ -3272,6 +3314,8 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
         let nameIdx=header.findIndex(h=>h.includes('name'));
         let dayIdx=['tuesday','wednesday','thursday','friday','saturday','monday'].map(d=>header.findIndex(h=>h.startsWith(d)));
         let extraIdx=header.findIndex(h=>h.includes('extra'));
+        let siteIdx=header.findIndex(h=>h==='site'||h.startsWith('site '));
+        let rateIdx=header.findIndex(h=>h.includes('rate'));
         if(idIdx===-1&&nameIdx===-1){alert('Could not find an Employee ID or Employee Name column. Check the file matches the expected columns (see the note at the bottom of the upload screen).');return}
         if(dayIdx.includes(-1)){alert('Could not find all six day columns (Tuesday, Wednesday, Thursday, Friday, Saturday and Monday). Check the exact column headers against the expected format.');return}
         const dataRows=rows.slice(1).filter(r=>r.some(c=>c));
@@ -3284,7 +3328,9 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
           const dayMarks=dayIdx.map(i=>String(r[i]||'').trim().length>0);
           const extraRaw=extraIdx>-1?r[extraIdx]:'';
           const extraParsed=parseWtsExtra(extraRaw);
-          return{idVal,nameVal,dayMarks,extraRaw,extraParsed,matched:emp||null};
+          const siteVal=siteIdx>-1?String(r[siteIdx]||'').trim():'';
+          const rateNum=rateIdx>-1?Number(String(r[rateIdx]||'').replace(/[^0-9.]/g,'')):0;
+          return{idVal,nameVal,dayMarks,extraRaw,extraParsed,siteVal,rate:rateNum>0?rateNum:0,matched:emp||null};
         });
         renderWtsUploadPreview();
       }catch(err){
@@ -3310,13 +3356,13 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     const transferDupes=dupeGroups.filter(([id,rs])=>!identicalDupes.some(([id2])=>id2===id));
     // Coverage check: how many of the company's ACTIVE casual staff does this file actually cover?
     // This is the check that would have caught an incomplete upload before it was committed.
-    const allCasualIds=new Set(activeEmployees().filter(isCasualV19).map(e=>e.id));
+    const allCasualIds=new Set(activeEmployees().filter(isWeeklySheetV19).map(e=>e.id));
     const coveredIds=new Set(wtsUploadRows.filter(r=>r.matched&&allCasualIds.has(r.matched.id)).map(r=>r.matched.id));
     const missingCount=[...allCasualIds].filter(id=>!coveredIds.has(id)).length;
     let coverageHtml=`<p>This file covers <b>${coveredIds.size}</b> of the <b>${allCasualIds.size}</b> active casual staff in the system`;
     if(missingCount>0){
       const missingBySite={};
-      activeEmployees().filter(isCasualV19).filter(e=>!coveredIds.has(e.id)).forEach(e=>{missingBySite[e.dept||'Unassigned']=(missingBySite[e.dept||'Unassigned']||0)+1;});
+      activeEmployees().filter(isWeeklySheetV19).filter(e=>!coveredIds.has(e.id)).forEach(e=>{missingBySite[e.dept||'Unassigned']=(missingBySite[e.dept||'Unassigned']||0)+1;});
       coverageHtml+=` — <b style="color:#a33c34">${missingCount} not included</b>: ${Object.entries(missingBySite).map(([s,c])=>`${escV19(s)} (${c})`).join(', ')}.</p>`;
     }else{coverageHtml+=` — every active casual employee is covered.</p>`;}
     let dupeHtml='';
@@ -3330,7 +3376,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     document.getElementById('wtsUploadCommitBtn').disabled=matched===0;
   }
   window.commitWtsUpload=function(){
-    const u=activeSystemUser();let daysApplied=0,extrasApplied=0;
+    const u=activeSystemUser();let daysApplied=0,extrasApplied=0,bookingsApplied=0;
     // Group by employee FIRST and union their day-marks, rather than applying each row in
     // isolation. The same person can legitimately appear more than once in one upload — Marlum
     // staff sometimes transfer between sites mid-week — and a later row's blank cell for a day
@@ -3339,12 +3385,16 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     const byEmployee=new Map();
     wtsUploadRows.filter(r=>r.matched).forEach(r=>{
       const id=r.matched.id;
-      if(!byEmployee.has(id))byEmployee.set(id,{emp:r.matched,dayMarks:[false,false,false,false,false,false],extraParsed:null,extraRaw:''});
+      if(!byEmployee.has(id))byEmployee.set(id,{emp:r.matched,dayMarks:[false,false,false,false,false,false],extraParsed:null,extraRaw:'',site:'',siteDays:-1,rate:0});
       const entry=byEmployee.get(id);
       r.dayMarks.forEach((present,i)=>{if(present)entry.dayMarks[i]=true;});
+      // A person split across two sites is booked to the site where this upload shows them for most days.
+      const rowDays=r.dayMarks.filter(Boolean).length;
+      if(r.siteVal&&rowDays>entry.siteDays){entry.site=r.siteVal;entry.siteDays=rowDays;}
+      if(r.rate)entry.rate=r.rate;
       if(r.extraParsed&&r.extraParsed.type!=='invalid'){entry.extraParsed=r.extraParsed;entry.extraRaw=r.extraRaw;}
     });
-    byEmployee.forEach(({emp:e,dayMarks,extraParsed,extraRaw})=>{
+    byEmployee.forEach(({emp:e,dayMarks,extraParsed,extraRaw,site,rate})=>{
       dayMarks.forEach((present,i)=>{
         const date=wtsDayDates[i];
         let existing=attendanceRecords().find(a=>a.employeeId===e.id&&a.date===date);
@@ -3356,19 +3406,31 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
           db.attendanceRecords=attendanceRecords().filter(a=>a!==existing);
         }
       });
+      if(site||rate){
+        // Where the person worked and what rate the workbook paid for this week. The employee's own
+        // department stays as their home site; the current rate follows the most recent week uploaded.
+        const weekStart=wtsDayDates[0];
+        db.weeklyBookings=db.weeklyBookings||[];
+        const bIdx=db.weeklyBookings.findIndex(b=>b.employeeId===e.id&&b.weekStart===weekStart);
+        const booking={id:'WBK-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),employeeId:e.id,name:e.name,weekStart,site,rate,enteredBy:u.username,createdAt:new Date().toISOString()};
+        if(bIdx>-1)db.weeklyBookings[bIdx]=booking;else db.weeklyBookings.push(booking);
+        bookingsApplied++;
+        const newest=db.weeklyBookings.filter(b=>b.employeeId===e.id&&Number(b.rate)>0).reduce((m,b)=>b.weekStart>m.weekStart?b:m,{weekStart:''});
+        if(rate&&newest.weekStart===weekStart&&Number(e.dailyRate||0)!==rate){log('Rate updated from timesheet',`${e.name} — ${e.dailyRate||0} to ${rate} (week of ${weekStart})`);e.dailyRate=rate;}
+      }
       if(extraParsed){
         const weekStart=wtsDayDates[0];
         db.weeklyExtras=db.weeklyExtras||[];
         const idx=db.weeklyExtras.findIndex(x=>x.employeeId===e.id&&x.weekStart===weekStart);
-        const entry={id:'WEX-U-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),employeeId:e.id,name:e.name,weekStart,type:extraParsed.type,hours:extraParsed.hours||0,rawValue:extraRaw,enteredBy:u.username,createdAt:new Date().toISOString()};
+        const entry=wtsExtraEntry(extraParsed,extraRaw,e,weekStart,'WEX-U-');
         if(idx>-1)db.weeklyExtras[idx]=entry;else db.weeklyExtras.push(entry);
         extrasApplied++;
       }
     });
-    log('Weekly Timesheet bulk upload',`${wtsDayDates[0]} to ${wtsDayDates[5]} — ${daysApplied} day-marks, ${extrasApplied} extra-hour entries`);
+    log('Weekly Timesheet bulk upload',`${wtsDayDates[0]} to ${wtsDayDates[5]} — ${daysApplied} day-marks, ${extrasApplied} extra entries, ${bookingsApplied} site/rate bookings`);
     save();closeModal();
     renderWtsTableBody();renderWtsFlags();
-    alert(`Uploaded. ${daysApplied} day-marks and ${extrasApplied} extra-hour entries applied for ${wtsDayDates[0]} to ${wtsDayDates[5]} — now showing on screen below for review. Switch site to check other sites' staff.`);
+    alert(`Uploaded. ${daysApplied} day-marks, ${extrasApplied} extra entries and ${bookingsApplied} site/rate bookings applied for ${wtsDayDates[0]} to ${wtsDayDates[5]} — now showing on screen below for review. Switch site to check other sites' staff.`);
   };
   window.clearWtsWeek=function(){
     if(!normalizeRoles(activeSystemUser()).includes('Super Admin')){alert('Only Super Admin can clear a week\'s attendance.');return}
@@ -3380,29 +3442,30 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     if(!confirm(`This will permanently remove ${existingCount} attendance record(s) and ${extrasCount} Extra Hr/day entr${extrasCount===1?'y':'ies'} for ${dates[0]} to ${dates[5]}, across every site, so you can upload fresh. This cannot be undone. Continue?`))return;
     db.attendanceRecords=(db.attendanceRecords||[]).filter(a=>!dates.includes(a.date));
     db.weeklyExtras=(db.weeklyExtras||[]).filter(x=>x.weekStart!==dates[0]);
+    db.weeklyBookings=(db.weeklyBookings||[]).filter(b=>b.weekStart!==dates[0]);
     log('Weekly Timesheet week cleared',`${dates[0]} to ${dates[5]} — removed ${existingCount} attendance records and ${extrasCount} extra-hour entries`);
     save();renderWtsTableBody();renderWtsFlags();
     alert(`Cleared. ${dates[0]} to ${dates[5]} is now empty and ready for a fresh upload.`);
   };
   window.downloadWtsWeekSummary=function(){
     renderWeeklyTimesheet(); // always resync with the current week/site selection, not just when nothing has been picked yet — otherwise switching weeks after the first download silently keeps using the OLD dates
-    const std=Number(db.timeTrackerSettings?.standardHours||8),otMult=Number(db.timeTrackerSettings?.overtimeMultiplier||1.5);
+    const std=Number(db.timeTrackerSettings?.standardHours||8);
     const site=document.getElementById('wtsSite').value;
     const showAll=site==='__ALL__';
-    const staff=activeEmployees().filter(isCasualV19).filter(e=>showAll||(e.dept||'Unassigned')===site).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
+    const staff=activeEmployees().filter(isWeeklySheetV19).filter(e=>showAll||(e.dept||'Unassigned')===site).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
     let rows=[['Weekly Timesheet Summary',showAll?'All Sites':site,`${wtsDayDates[0]} to ${wtsDayDates[5]}`],[],
       ['Site','Employee ID','Employee Name','Days Present','Daily Rate','Extra Pay','Estimated Gross']];
     let grandTotal=0;
     staff.forEach(e=>{
       const days=wtsDayDates.reduce((s,d)=>{const a=attendanceRecords().find(x=>x.employeeId===e.id&&x.date===d);return s+(a&&(a.status==='Present'||a.status==='Half Day')?attendancePayable(a.status):0)},0);
       if(days<=0&&!(db.weeklyExtras||[]).some(x=>x.employeeId===e.id&&x.weekStart===wtsDayDates[0]))return;
-      const daily=Number(e.dailyRate||0);
+      const bk=(db.weeklyBookings||[]).find(b=>b.employeeId===e.id&&b.weekStart===wtsDayDates[0]);
+      const daily=Number(bk&&Number(bk.rate)>0?bk.rate:(e.dailyRate||0));
       const extra=(db.weeklyExtras||[]).find(x=>x.employeeId===e.id&&x.weekStart===wtsDayDates[0]);
-      let extraPay=0;
-      if(extra){if(extra.type==='plus1')extraPay=daily;else if(extra.type==='hours')extraPay=Number(extra.hours||0)*(std?daily/std:0)*otMult;}
+      const extraPay=extra?weeklyExtraPay(extra,daily,std?daily/std:0).pay:0;
       const gross=daily*days+extraPay;
       grandTotal+=gross;
-      rows.push([e.dept||'',e.id,e.name,days,daily.toFixed(2),extraPay.toFixed(2),gross.toFixed(2)]);
+      rows.push([(bk&&bk.site)||e.dept||'',e.id,e.name,days,daily.toFixed(2),extraPay.toFixed(2),gross.toFixed(2)]);
     });
     rows.push(['','','','','','Total:',grandTotal.toFixed(2)]);
     let csv=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');
@@ -3414,7 +3477,7 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
   window.downloadBlankWeeklyTimesheet=function(){
     const site=document.getElementById('wtsSite').value;
     const showAll=site==='__ALL__';
-    const staff=activeEmployees().filter(isCasualV19).filter(e=>showAll||(e.dept||'Unassigned')===site).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
+    const staff=activeEmployees().filter(isWeeklySheetV19).filter(e=>showAll||(e.dept||'Unassigned')===site).sort((a,b)=>(a.dept||'').localeCompare(b.dept||'')||a.name.localeCompare(b.name));
     const monday=wtsDayDates?wtsDayDates[0]:weekTuesdayISO(todayV19());
     const w=window.open('','_blank');
     w.document.write(`<!doctype html><html><head><title>Marlum Timesheet — ${escV19(showAll?'All Sites':site)}</title><style>
@@ -4959,7 +5022,7 @@ header{position:sticky;top:0;z-index:1100}
       filename=`marlum-payroll-summary-${start}-to-${end}`;
     }else if(type==='department_summary'){
       const cycles=cyclesInRange(start,end),groups={};
-      cycles.forEach(c=>c.employees.forEach(x=>{const e=db.employees.find(a=>a.id===x.id),d=e?.dept||'Unassigned';groups[d]=groups[d]||{employees:0,gross:0,net:0};groups[d].employees++;groups[d].gross+=Number(x.gross||0);groups[d].net+=Number(x.netPay||0)}));
+      cycles.forEach(c=>c.employees.forEach(x=>{const e=db.employees.find(a=>a.id===x.id),d=x.workSite||e?.dept||'Unassigned';groups[d]=groups[d]||{employees:0,gross:0,net:0};groups[d].employees++;groups[d].gross+=Number(x.gross||0);groups[d].net+=Number(x.netPay||0)}));
       headers=['Department','Employee-Cycles','Gross','Net'];moneyCols=[2,3];
       rows=Object.entries(groups).map(([d,g])=>[d,g.employees,g.gross,g.net]);
       filename=`marlum-department-summary-${start}-to-${end}`;
@@ -5155,7 +5218,7 @@ function scrollToCardTable(id){
     out.push({lvl:noCode.length?'bad':'ok',title:'Bank names recognised',
       text:noCode.length?`${noCode.length} bank name(s) could not be matched to a bank code: ${names(noCode)}. Correct the bank name in Employee Management.`:'Every bank name matched a bank code automatically.'});
     if(weekly){
-      const z=emps.filter(x=>Number(x.payableDays||0)<=0);
+      const z=emps.filter(x=>Number(x.payableDays||0)<=0&&Number(x.overtimePay||0)<=0);
       out.push({lvl:z.length?'bad':'ok',title:'Everyone has payable days',
         text:z.length?`${z.length} casual employee(s) have no payable days: ${names(z)}. The cycle cannot be submitted until attendance is fixed.`:'Every casual employee has at least one payable day.'});
     }
@@ -5182,7 +5245,7 @@ function scrollToCardTable(id){
     const rows=c.employees.map(x=>{
       const bad=hasIncompleteBankDetails(x),ded=Number(x.deduction||0)+Number(x.loanRepayment||0);
       const rate=weekly?money(x.dailyRate):money(Number(x.basic||0)+Number(x.housing||0)+Number(x.transport||0)+Number(x.other||0));
-      return `<tr data-q="${qAttr(x)}"${bad?' class="cyc-warnrow"':''}><td><b>${esc(x.name)}</b><div class="cyc-id">${esc(x.id)}</div></td><td>${rate}</td>${weekly?`<td>${Number(x.payableDays||0)}</td>`:''}<td>${Number(x.overtimeHours||0).toFixed(2)}</td><td>${money(x.overtimePay||0)}</td><td>${money(x.bonus||0)}</td><td>${money(ded)}</td><td>${money(x.gross)}</td><td><b>${money(x.netPay)}</b></td><td>${esc(x.bankName||'—')}${bad?' <span class="cyc-badge bad" title="Missing or unrecognised bank details">check</span>':''}</td><td>${esc(x.accountNumber||'—')}</td></tr>`;
+      return `<tr data-q="${qAttr(x)}"${bad?' class="cyc-warnrow"':''}><td><b>${esc(x.name)}</b><div class="cyc-id">${esc(x.id)}${x.workSite?' · '+esc(x.workSite):''}</div></td><td>${rate}</td>${weekly?`<td>${Number(x.payableDays||0)}</td>`:''}<td>${Number(x.overtimeHours||0).toFixed(2)}</td><td>${money(x.overtimePay||0)}</td><td>${money(x.bonus||0)}</td><td>${money(ded)}</td><td>${money(x.gross)}</td><td><b>${money(x.netPay)}</b></td><td>${esc(x.bankName||'—')}${bad?' <span class="cyc-badge bad" title="Missing or unrecognised bank details">check</span>':''}</td><td>${esc(x.accountNumber||'—')}</td></tr>`;
     }).join('');
     const span=head.length-4;
     return `<div class="cyc-tools"><input id="cycSearch" class="cyc-search" placeholder="Search by name or ID…" oninput="cycleWsFilter('cycRows','cycCount',this.value)"><span id="cycCount" class="label">${c.employees.length} employees</span></div>
