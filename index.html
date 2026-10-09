@@ -5652,25 +5652,25 @@ function scrollToCardTable(id){
 </script>
 
 
-<div id="hScrollPad" class="hscroll-pad" hidden>
-  <button type="button" id="hScrollLeft" aria-label="Scroll left" title="Scroll left (hold to keep going)">&#9664;</button>
-  <button type="button" id="hScrollRight" aria-label="Scroll right" title="Scroll right (hold to keep going)">&#9654;</button>
+<div id="hBar" class="hbar" hidden role="scrollbar" aria-orientation="horizontal" aria-label="Scroll sideways">
+  <div class="hbar-track"><div class="hbar-thumb"></div></div>
 </div>
 <style>
-.hscroll-pad{position:fixed;right:18px;bottom:18px;z-index:2100;display:flex;gap:8px;padding:6px;border-radius:999px;background:#ffffffee;border:1px solid #cfd8d2;box-shadow:0 4px 14px #0003}
-.hscroll-pad[hidden]{display:none}
-.hscroll-pad button{width:42px;height:42px;border-radius:50%;border:0;background:#17382b;color:#fff;font-size:16px;line-height:1;cursor:pointer;touch-action:manipulation}
-.hscroll-pad button:hover:not(:disabled){background:#245640}
-.hscroll-pad button:disabled{opacity:.3;cursor:default}
-@media print{.hscroll-pad{display:none}}
+/* Sideways scroll bar for laptops and desktops: shows itself only when something on screen is wider than its frame.
+   Phones keep their own native bar, so this is hidden there. */
+.hbar{position:fixed;left:0;right:0;bottom:0;height:20px;z-index:2100;background:#eef2ef;border-top:1px solid #cfd8d2;padding:4px 12px;box-sizing:border-box}
+.hbar[hidden]{display:none}
+.hbar-track{position:relative;height:100%;border-radius:6px;background:#d7dfda}
+.hbar-thumb{position:absolute;top:0;bottom:0;left:0;min-width:48px;border-radius:6px;background:#17382b;cursor:grab;touch-action:none}
+.hbar-thumb:hover,.hbar.drag .hbar-thumb{background:#245640}
+.hbar.drag .hbar-thumb{cursor:grabbing}
+body.has-hbar{padding-bottom:24px}
+@media (max-width:900px),print{.hbar{display:none!important}body.has-hbar{padding-bottom:0}}
 </style>
 <script>
-// Left / right scroll buttons. They appear only when something on screen is wider than its frame
-// (a wide table, or the page itself), and move whichever sideways-scrolling area is most cut off.
-// With a pop-up open they move that pop-up's content. Hold a button to keep scrolling.
 (function(){
-  const pad=document.getElementById('hScrollPad'),left=document.getElementById('hScrollLeft'),right=document.getElementById('hScrollRight');
-  let target=null,holdDelay=null,holdTimer=null;
+  const bar=document.getElementById('hBar'),track=bar.querySelector('.hbar-track'),thumb=bar.querySelector('.hbar-thumb');
+  let target=null,drag=null;
   const inView=el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth};
   function findTarget(){
     const modal=document.getElementById('modal'),inModal=modal&&modal.classList.contains('show');
@@ -5686,27 +5686,41 @@ function scrollToCardTable(id){
     if(!inModal){const de=document.scrollingElement||document.documentElement;consider(de,de.scrollWidth-de.clientWidth)}
     return best;
   }
-  function refresh(){
-    if(document.hidden)return;
-    target=findTarget();
-    pad.hidden=!target;
+  function place(){
     if(!target)return;
-    const max=target.scrollWidth-target.clientWidth;
-    left.disabled=target.scrollLeft<=1;
-    right.disabled=target.scrollLeft>=max-1;
+    const view=target.clientWidth,full=target.scrollWidth,tw=track.clientWidth;
+    const w=Math.max(48,tw*view/full),max=full-view;
+    thumb.style.width=w+'px';
+    thumb.style.left=(max>0?(tw-w)*target.scrollLeft/max:0)+'px';
   }
-  const nudge=(dir,smooth)=>{if(!target)return;target.scrollBy({left:dir*(smooth?Math.max(160,target.clientWidth*0.6):70),behavior:smooth?'smooth':'auto'});setTimeout(refresh,smooth?350:30)};
-  function stop(){clearTimeout(holdDelay);clearInterval(holdTimer);holdDelay=holdTimer=null}
-  [[left,-1],[right,1]].forEach(([btn,dir])=>{
-    btn.addEventListener('pointerdown',e=>{e.preventDefault();refresh();nudge(dir,true);holdDelay=setTimeout(()=>{holdTimer=setInterval(()=>nudge(dir,false),60)},450)});
-    ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev,stop));
+  function refresh(){
+    if(document.hidden||drag)return;
+    target=findTarget();
+    const show=!!target&&innerWidth>900;
+    bar.hidden=!show;
+    document.body.classList.toggle('has-hbar',show);
+    if(show)place();
+  }
+  thumb.addEventListener('pointerdown',e=>{e.preventDefault();thumb.setPointerCapture(e.pointerId);drag={x:e.clientX,left:target?target.scrollLeft:0};bar.classList.add('drag')});
+  thumb.addEventListener('pointermove',e=>{
+    if(!drag||!target)return;
+    const tw=track.clientWidth,w=thumb.offsetWidth,max=target.scrollWidth-target.clientWidth;
+    target.scrollLeft=drag.left+(e.clientX-drag.x)*max/Math.max(1,tw-w);
+    place();
+  });
+  ['pointerup','pointercancel'].forEach(ev=>thumb.addEventListener(ev,()=>{drag=null;bar.classList.remove('drag');refresh()}));
+  track.addEventListener('pointerdown',e=>{
+    if(e.target===thumb||!target)return;
+    const r=track.getBoundingClientRect(),w=thumb.offsetWidth,max=target.scrollWidth-target.clientWidth,tw=track.clientWidth;
+    target.scrollLeft=(e.clientX-r.left-w/2)*max/Math.max(1,tw-w);
+    place();
   });
   let queued=false;
   const soon=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;refresh()})};
   window.addEventListener('scroll',soon,true);
   window.addEventListener('resize',soon);
   document.addEventListener('click',()=>setTimeout(soon,200),true);
-  setInterval(refresh,2000);
+  setInterval(refresh,1500);
   refresh();
 })();
 </script>
