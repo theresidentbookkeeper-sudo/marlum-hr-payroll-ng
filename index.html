@@ -4946,6 +4946,14 @@ header{position:sticky;top:0;z-index:1100}
 .login-section label,.login-card label{font-size:11px;margin:10px 0 4px}
 .login-card input{padding:10px}
 .login-section .login-note,.login-note{font-size:10.5px!important;margin-top:12px!important}
+
+/* ---- No form control may spill out of its cell or sit on top of its neighbour ---- */
+.grid>label,.form>label,.toolbar>label,.modalbox label{min-width:0}
+.grid>label,.form>label{display:block}
+label>input:not([type=checkbox]):not([type=radio]):not([type=file]),label>select,label>textarea{box-sizing:border-box;width:100%;max-width:100%;min-width:0}
+.grid select,.form select{text-overflow:ellipsis}
+.checkbox-list{display:flex;flex-wrap:wrap;gap:6px 16px}
+.checkbox-list label{display:inline-flex;align-items:center;gap:6px;margin:0;white-space:normal}
 </style>
 
 <script id="marlum-v29-auth-polish">
@@ -5643,4 +5651,63 @@ function scrollToCardTable(id){
 })();
 </script>
 
+
+<div id="hScrollPad" class="hscroll-pad" hidden>
+  <button type="button" id="hScrollLeft" aria-label="Scroll left" title="Scroll left (hold to keep going)">&#9664;</button>
+  <button type="button" id="hScrollRight" aria-label="Scroll right" title="Scroll right (hold to keep going)">&#9654;</button>
+</div>
+<style>
+.hscroll-pad{position:fixed;right:18px;bottom:18px;z-index:2100;display:flex;gap:8px;padding:6px;border-radius:999px;background:#ffffffee;border:1px solid #cfd8d2;box-shadow:0 4px 14px #0003}
+.hscroll-pad[hidden]{display:none}
+.hscroll-pad button{width:42px;height:42px;border-radius:50%;border:0;background:#17382b;color:#fff;font-size:16px;line-height:1;cursor:pointer;touch-action:manipulation}
+.hscroll-pad button:hover:not(:disabled){background:#245640}
+.hscroll-pad button:disabled{opacity:.3;cursor:default}
+@media print{.hscroll-pad{display:none}}
+</style>
+<script>
+// Left / right scroll buttons. They appear only when something on screen is wider than its frame
+// (a wide table, or the page itself), and move whichever sideways-scrolling area is most cut off.
+// With a pop-up open they move that pop-up's content. Hold a button to keep scrolling.
+(function(){
+  const pad=document.getElementById('hScrollPad'),left=document.getElementById('hScrollLeft'),right=document.getElementById('hScrollRight');
+  let target=null,holdDelay=null,holdTimer=null;
+  const inView=el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth};
+  function findTarget(){
+    const modal=document.getElementById('modal'),inModal=modal&&modal.classList.contains('show');
+    const root=inModal?document.getElementById('modalContent'):document.querySelector('main')||document.body;
+    let best=null,bestOver=2;
+    const consider=(el,over)=>{if(over>bestOver){best=el;bestOver=over}};
+    root.querySelectorAll('*').forEach(el=>{
+      const over=el.scrollWidth-el.clientWidth;
+      if(over<=2||el.clientWidth<40)return;
+      if(!/(auto|scroll)/.test(getComputedStyle(el).overflowX)||!inView(el))return;
+      consider(el,over);
+    });
+    if(!inModal){const de=document.scrollingElement||document.documentElement;consider(de,de.scrollWidth-de.clientWidth)}
+    return best;
+  }
+  function refresh(){
+    if(document.hidden)return;
+    target=findTarget();
+    pad.hidden=!target;
+    if(!target)return;
+    const max=target.scrollWidth-target.clientWidth;
+    left.disabled=target.scrollLeft<=1;
+    right.disabled=target.scrollLeft>=max-1;
+  }
+  const nudge=(dir,smooth)=>{if(!target)return;target.scrollBy({left:dir*(smooth?Math.max(160,target.clientWidth*0.6):70),behavior:smooth?'smooth':'auto'});setTimeout(refresh,smooth?350:30)};
+  function stop(){clearTimeout(holdDelay);clearInterval(holdTimer);holdDelay=holdTimer=null}
+  [[left,-1],[right,1]].forEach(([btn,dir])=>{
+    btn.addEventListener('pointerdown',e=>{e.preventDefault();refresh();nudge(dir,true);holdDelay=setTimeout(()=>{holdTimer=setInterval(()=>nudge(dir,false),60)},450)});
+    ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev,stop));
+  });
+  let queued=false;
+  const soon=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;refresh()})};
+  window.addEventListener('scroll',soon,true);
+  window.addEventListener('resize',soon);
+  document.addEventListener('click',()=>setTimeout(soon,200),true);
+  setInterval(refresh,2000);
+  refresh();
+})();
+</script>
 </body></html>
