@@ -1693,7 +1693,7 @@ function submitPayrollCycle(id){
   let c=payrollCycles().find(x=>x.id===id);if(!c)return;
   if(!userHasRoleFor('Payroll Preparation')){alert('Only an authorized payroll preparer (Accountant) can submit this cycle for review.');return}
   refreshWeeklyCycleFromAttendance(c);
-  if(c.type==='weekly_casual' && c.employees.some(x=>Number(x.payableDays||0)<=0)){alert('At least one casual employee has zero approved payable days. Review attendance before submitting payroll.');return}
+  if(c.type==='weekly_casual' && c.employees.some(x=>Number(x.payableDays||0)<=0&&Number(x.overtimePay||0)<=0)){alert('At least one casual employee has zero approved payable days. Review attendance before submitting payroll.');return}
   c.status='Awaiting Review';c.submittedAt=new Date().toISOString();save();log('Payroll cycle submitted for review',c.id);render();
 }
 function reviewPayrollCycle(id){
