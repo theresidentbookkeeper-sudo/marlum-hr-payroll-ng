@@ -1643,10 +1643,15 @@ function cancelCycleAdjustment(adjId,cycleId){
   if(c)recalculateCycleEmployeeLine(c,a.emp);
   log('Payroll cycle adjustment removed',`${cycleId} — ${a.name}`);save();if(typeof window.render==='function')window.render();openCycleAdjustments(cycleId);
 }
+function cycleRowDeleteBtn(c){
+  if(c.paymentBatchId)return '<span class="label" title="This cycle already has a bank payment batch, so it cannot be deleted">Has payment batch</span>';
+  if(!normalizeRoles(activeSystemUser()).includes('Super Admin'))return '';
+  return `<button class="btn danger" onclick="deletePayrollCycle('${esc(c.id)}')">Delete</button>`;
+}
 function openPayrollCycles(){
   let cs=payrollCycles().slice().reverse();
   openModal(`<h3>Payroll Cycle Register</h3><table><tr><th>Cycle</th><th>Type</th><th>Period</th><th>Employees</th><th>Gross</th><th>Net</th><th>Status</th><th>Action</th></tr>
-  ${cs.map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(cycleTypeLabel(c.type))}</td><td>${esc(c.start)} to ${esc(c.end)}</td><td>${c.employeeCount}</td><td>${money(c.totalGross)}</td><td>${money(c.totalNet)}</td><td>${esc(c.status)}</td><td><button class="btn secondary" onclick="openPayrollCycle('${esc(c.id)}')">Open</button></td></tr>`).join('')||'<tr><td colspan="8">No payroll cycles.</td></tr>'}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
+  ${cs.map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(cycleTypeLabel(c.type))}</td><td>${esc(c.start)} to ${esc(c.end)}</td><td>${c.employeeCount}</td><td>${money(c.totalGross)}</td><td>${money(c.totalNet)}</td><td>${esc(c.status)}</td><td><button class="btn secondary" onclick="openPayrollCycle('${esc(c.id)}')">Open</button> ${cycleRowDeleteBtn(c)}</td></tr>`).join('')||'<tr><td colspan="8">No payroll cycles.</td></tr>'}</table><button class="btn secondary" onclick="closeModal()">Close</button>`);
 }
 function openPayrollCycle(id){
   let c=payrollCycles().find(x=>x.id===id);if(!c)return;
@@ -1673,7 +1678,7 @@ function deletePayrollCycle(id){
   let c=payrollCycles().find(x=>x.id===id);if(!c)return;
   if(!normalizeRoles(activeSystemUser()).includes('Super Admin')){alert('Only Super Admin can delete a payroll cycle.');return}
   if(c.paymentBatchId){alert('This cycle already has a bank payment batch and cannot be deleted. Contact support if this needs to be reversed.');return}
-  if(!confirm(`Delete payroll cycle ${c.id} (${cycleTypeLabel(c.type)}, ${c.start} to ${c.end})? This cannot be undone. Any cycle adjustments tied to it will also be removed.`))return;
+  if(!confirm(`Delete ONLY this payroll cycle?\n\n${c.id} (${cycleTypeLabel(c.type)}, ${c.start||'?'} to ${c.end||'?'}) — status ${c.status}, ${c.employeeCount||(c.employees||[]).length} employees\n\nAll other payroll cycles are kept. This cannot be undone. Any cycle adjustments tied to it will also be removed.${['Locked','Payment Batch Created'].includes(c.status)?'\n\nNote: loan balances already reduced by this cycle are NOT restored.':''}`))return;
   db.payrollCycles=payrollCycles().filter(x=>x.id!==id);
   db.cycleAdjustments=(db.cycleAdjustments||[]).filter(a=>a.cycleId!==id);
   log('Payroll cycle deleted',c.id);save();closeModal();render();
@@ -1966,7 +1971,7 @@ document.getElementById('pcWeekly').textContent=pcs.filter(x=>x.type==='weekly_c
 document.getElementById('pcMonthly').textContent=pcs.filter(x=>x.type==='monthly_fixed').length;
 document.getElementById('pcRecon').textContent=paymentBatches().filter(x=>['Submitted to Bank','Paid'].includes(x.status)&&x.bankStatus!=='Matched').length;
 document.getElementById('pcPaid').textContent=paymentBatches().filter(x=>['Paid','Reconciled'].includes(x.status)).length;
-document.getElementById('pcRows').innerHTML=pcs.slice().reverse().map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(cycleTypeLabel(c.type))}</td><td>${esc(c.start)} to ${esc(c.end)}</td><td>${c.employeeCount}</td><td>${money(c.totalNet)}</td><td>${esc(c.status)}</td><td><button class="btn secondary" onclick="openPayrollCycle('${esc(c.id)}')">Open</button></td></tr>`).join('')||'<tr><td colspan="7">No payroll cycles created.</td></tr>';
+document.getElementById('pcRows').innerHTML=pcs.slice().reverse().map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(cycleTypeLabel(c.type))}</td><td>${esc(c.start)} to ${esc(c.end)}</td><td>${c.employeeCount}</td><td>${money(c.totalNet)}</td><td>${esc(c.status)}</td><td><button class="btn secondary" onclick="openPayrollCycle('${esc(c.id)}')">Open</button> ${cycleRowDeleteBtn(c)}</td></tr>`).join('')||'<tr><td colspan="7">No payroll cycles created.</td></tr>';
 
 
 let pbs=paymentBatches();
