@@ -2560,7 +2560,18 @@ main{background:var(--sand);padding:24px}.card{border-color:var(--line);box-shad
     if(!localList.every(x=>x&&typeof x==='object'&&'id' in x)||!remoteList.every(x=>x&&typeof x==='object'&&'id' in x))return localList;
     const baseline={};(baselineList||[]).forEach(x=>{if(x&&x.id!=null)baseline[x.id]=x});
     const out=new Map();
-    remoteList.forEach(x=>{if(x&&x.id!=null)out.set(x.id,x)});
+    // A record this session knew about (it is in the baseline) and has since removed on purpose — for example a
+    // payroll cycle deleted with its Delete button — must stay removed. Without this, every record still held by
+    // the server was copied back in, so any deletion made after someone else (or a database edit) had saved in
+    // between came straight back on the next save and after a refresh. A record is only dropped when the server's
+    // copy is exactly what this session last saw; if someone else has changed it since, it is kept.
+    const localIds=new Set();localList.forEach(x=>{if(x&&x.id!=null)localIds.add(x.id)});
+    remoteList.forEach(x=>{
+      if(!x||x.id==null)return;
+      const wasKnown=baseline[x.id]!==undefined;
+      if(wasKnown&&!localIds.has(x.id)&&JSON.stringify(x)===JSON.stringify(baseline[x.id]))return;
+      out.set(x.id,x);
+    });
     localList.forEach(x=>{
       if(x==null||x.id==null)return;
       const changedHere=JSON.stringify(x)!==JSON.stringify(baseline[x.id]||null);
