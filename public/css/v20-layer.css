@@ -1,0 +1,14 @@
+
+.nav-item.nav-restricted{opacity:.45;position:relative}
+.nav-item.nav-restricted::after{content:'🔒';font-size:10px;margin-left:auto;opacity:.8}
+.nav-item.nav-restricted:hover{opacity:.65;background:#f7f4f1!important}
+/* .v20-demo-block CSS removed — the demo-role login it styled no longer exists */
+.v20-demo-divider{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8a9690;text-align:center;margin-bottom:10px}
+.v20-demo-btn{background:#337056!important;margin-top:10px}
+#v20WelcomeToast{position:fixed;right:18px;bottom:18px;z-index:100000;background:#16362a;color:#fff;padding:14px 18px;border-radius:12px;box-shadow:0 12px 30px #0004;
+  opacity:0;transform:translateY(12px);pointer-events:none;transition:opacity .25s ease,transform .25s ease;max-width:320px}
+#v20WelcomeToast.show{opacity:1;transform:translateY(0)}
+#v20WelcomeToast b{font-size:14px}
+.v20-toast-sub{font-size:12px;color:#cfe3d7;margin-top:3px}
+.v20-role-badge{display:inline-block;background:#e6f0ea;color:#1e4636;border-radius:999px;padding:3px 9px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:middle}
+@media(max-width:650px){#v20WelcomeToast{left:14px;right:14px;max-width:none;bottom:70px}}

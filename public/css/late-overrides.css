@@ -1,0 +1,11 @@
+
+/* Sideways scroll bar for laptops and desktops: shows itself only when something on screen is wider than its frame.
+   Phones keep their own native bar, so this is hidden there. */
+.hbar{position:fixed;left:0;right:0;bottom:0;height:20px;z-index:2100;background:#eef2ef;border-top:1px solid #cfd8d2;padding:4px 12px;box-sizing:border-box}
+.hbar[hidden]{display:none}
+.hbar-track{position:relative;height:100%;border-radius:6px;background:#d7dfda}
+.hbar-thumb{position:absolute;top:0;bottom:0;left:0;min-width:48px;border-radius:6px;background:#17382b;cursor:grab;touch-action:none}
+.hbar-thumb:hover,.hbar.drag .hbar-thumb{background:#245640}
+.hbar.drag .hbar-thumb{cursor:grabbing}
+body.has-hbar{padding-bottom:24px}
+@media (max-width:900px),print{.hbar{display:none!important}body.has-hbar{padding-bottom:0}}

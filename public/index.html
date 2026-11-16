@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Marlum HR & Payroll</title>
+<link rel="stylesheet" href="css/base.css"></head><body><div id="appError" style="display:none;margin:16px;padding:14px;border-radius:8px;background:#fdeaea;color:#7b2222;font-family:Arial,sans-serif"><b>Application error:</b> <span id="appErrorText"></span></div>
+<header><span id="marlumHeaderBrand">MARLUM NIGERIA LTD</span><span id="today"></span><span id="deviceClock" class="device-clock"></span><span id="syncStatus" class="sync-status" style="margin-left:14px;font-size:12px;padding:3px 10px;border-radius:12px;display:none;cursor:default"></span><div id="marlumAuthBox" class="auth-user" style="display:none"><span class="auth-role" id="marlumAuthRole"></span><span id="marlumAuthName"></span><a href="javascript:void(0)" id="marlumChangePw" onclick="marlumShowSetPassword('change')">Change password</a><button type="button" id="marlumSignOutBtn" class="auth-signout" onclick="marlumSignOutV24()">Sign out</button></div></header>
+<div class="layout"><nav>
+</nav><main>
+<section id="dashboard" class="page active"><h2>Dashboard</h2><div class="grid">
+<div class="card"><div class="label">Active Employees</div><div class="metric" id="mEmployees">0</div></div>
+<div class="card"><div class="label">Current Gross Payroll</div><div class="metric" id="mGross">₦0</div></div>
+<div class="card"><div class="label">Current Monthly Payroll</div><div class="metric" id="mNet">₦0</div></div>
+<div class="card"><div class="label">Payments Successful</div><div class="metric" id="mPaid">0</div></div></div>
+<div class="card" style="margin-top:15px"><h3>Payroll Control Status</h3><div id="controlStatus"></div></div></section>
+
+<section id="employees" class="page"><h2>Employees</h2><div class="toolbar"><button class="btn primary" onclick="openEmployee()">+ Add Employee</button><button class="btn secondary" onclick="exportEmployees()">Export CSV</button><input id="employeeSearch" placeholder="Search employee, ID, department..." oninput="renderEmployees()" style="padding:10px;border:1px solid #d0cbc7;border-radius:7px;min-width:280px"></div>
+<table><thead><tr><th>ID</th><th>Employee</th><th>Department</th><th>Position</th><th>Gross</th><th>Bank</th><th>Status</th><th>Action</th></tr></thead><tbody id="employeeRows"></tbody></table></section>
+
+<section id="payslips" class="page">
+<h2>Payslips</h2>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="generateAllPayslips()">Generate Current Payroll Payslips</button>
+    <button class="btn secondary" onclick="openPayslipSearch()">Find Employee Payslip</button>
+  </div>
+  <div id="payslipSummary"></div>
+  <table><thead><tr><th>Employee</th><th>Period</th><th>Gross</th><th>Adjustments</th><th>Net Pay</th><th>Action</th></tr></thead>
+  <tbody id="payslipRows"></tbody></table>
+</div>
+</section>
+
+
+
+<section id="hrrecords" class="page">
+<h2>HR Records & Documents</h2>
+<div class="grid">
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('hrEmployeeRows')" title="Go to Employee HR Records"><div class="label">Active Employees</div><div class="metric" id="hrActive">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('hrEmployeeRows')" title="Go to Employee HR Records"><div class="label">Employee Records</div><div class="metric" id="hrProfiles">0</div></div>
+  <div class="metric-card clickable-card" onclick="openHRDocumentRegister()" title="Open the Document Register"><div class="label">Documents Logged</div><div class="metric" id="hrDocs">0</div></div>
+  <div class="metric-card clickable-card" onclick="openHRDocumentRegister()" title="Open the Document Register"><div class="label">Expiring / Review Due</div><div class="metric" id="hrExpiring">0</div></div>
+</div>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openHRProfile()">Employee HR Profile</button>
+    <button class="btn secondary" onclick="openHRDocument()">Add Document Record</button>
+    <button class="btn secondary" onclick="openHRDocumentRegister()">Document Register</button>
+  </div>
+  <table><thead><tr><th>Employee</th><th>ID</th><th>Department</th><th>Employment Date</th><th>Document Records</th><th>Action</th></tr></thead>
+  <tbody id="hrEmployeeRows"></tbody></table>
+</div>
+</section>
+
+
+<section id="lifecycle" class="page">
+<h2>Employee Lifecycle & HR Actions</h2>
+<div class="grid">
+  <div class="metric-card clickable-card" onclick="openHRActionRegister()" title="Open the HR Action Register"><div class="label">Pending HR Actions</div><div class="metric" id="lifePending">0</div></div>
+  <div class="metric-card clickable-card" onclick="openEmployeeTimeline()" title="Open Employee Timeline"><div class="label">Probation / Review Due</div><div class="metric" id="lifeProbation">0</div></div>
+  <div class="metric-card clickable-card" onclick="navToPage('compensation')" title="Go to Compensation & Salary History"><div class="label">Salary Changes</div><div class="metric" id="lifeSalaryChanges">0</div></div>
+  <div class="metric-card clickable-card" onclick="openEmployeeTimeline()" title="Open Employee Timeline"><div class="label">Exits Recorded</div><div class="metric" id="lifeExits">0</div></div>
+</div>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openHRAction()">+ New HR Action</button>
+    <button class="btn primary" onclick="openRecordLoan()">+ Record Loan</button>
+    <button class="btn secondary" onclick="openBulkLoanImport()">Bulk Import Loans</button>
+    <button class="btn secondary" onclick="openHRActionRegister()">Action Register</button>
+    <button class="btn secondary" onclick="openEmployeeTimeline()">Employee Timeline</button>
+    <button class="btn secondary" onclick="openLoanSchedule()">Loan Schedule & Report</button>
+  </div>
+  <table><thead><tr><th>Employee</th><th>Action</th><th>Effective Date</th><th>Details</th><th>Status</th><th>Action</th></tr></thead>
+  <tbody id="lifeRows"></tbody></table>
+</div>
+</section>
+
+
+<section id="compensation" class="page">
+<h2>Compensation & Salary History</h2>
+<div class="grid">
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('compRows')" title="Go to Compensation Records"><div class="label">Current Salary Records</div><div class="metric" id="compCurrent">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('compRows')" title="Go to Compensation Records"><div class="label">Pending Salary Changes</div><div class="metric" id="compPending">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('compRows')" title="Go to Compensation Records"><div class="label">Approved Changes</div><div class="metric" id="compApproved">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('compRows')" title="Go to Compensation Records"><div class="label">Changes Effective This Month</div><div class="metric" id="compEffective">0</div></div>
+</div>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openCompensationChange()">+ Salary Change</button>
+    <button class="btn secondary" onclick="openSalaryRegister()">Salary Register</button>
+    <button class="btn secondary" onclick="openSalaryHistory()">Employee Salary History</button>
+  </div>
+  <table><thead><tr><th>Employee</th><th>Current Monthly Gross</th><th>Pending Change</th><th>Effective Date</th><th>Status</th><th>Action</th></tr></thead>
+  <tbody id="compRows"></tbody></table>
+</div>
+</section>
+
+
+<section id="ess" class="page">
+<h2>Employee Self-Service Portal</h2>
+<div class="grid">
+  <div class="metric-card clickable-card" onclick="navToPage('employees')" title="Go to Employee Management to add or check an email address"><div class="label">Linked to a Portal</div><div class="metric" id="essUsers">0</div></div>
+  <div class="metric-card clickable-card" onclick="navToPage('payslips')" title="Go to Payslips"><div class="label">Payslips Available</div><div class="metric" id="essPayslips">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('essRows')" title="Go to Portal Access Register"><div class="label">Pending Requests</div><div class="metric" id="essPending">0</div></div>
+</div>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openEmployeePortal()">Open Employee Portal</button>
+    <button class="btn secondary" onclick="navToPage('security')">Manage Sign-In Access</button>
+  </div>
+  <p class="label">The portal is designed for employee-level access. Employees can see only their own HR information, payslips and attendance records.</p>
+</div>
+<div class="card">
+  <h3>Portal Access Register</h3>
+  <table><thead><tr><th>Employee</th><th>Employee ID</th><th>Portal Access</th><th>Admin Preview</th><th>Action</th></tr></thead>
+  <tbody id="essRows"></tbody></table>
+</div>
+</section>
+
+
+<section id="security" class="page">
+<h2>Users, Roles & Permissions</h2>
+<div class="grid">
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('secRows')" title="Go to User list"><div class="label">System Users</div><div class="metric" id="secUsers">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('secRows')" title="Go to User list"><div class="label">Administrators</div><div class="metric" id="secAdmins">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('secRows')" title="Go to User list"><div class="label">Locked / Disabled</div><div class="metric" id="secDisabled">0</div></div>
+  <div class="metric-card clickable-card" onclick="navToPage('audit')" title="Go to Audit Log"><div class="label">Audit Events</div><div class="metric" id="secAudit">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('secRows')" title="Accounts that have never actually signed in yet"><div class="label">Not Yet Signed In</div><div class="metric" id="secNeverSignedIn">0</div></div>
+</div>
+<div class="card">
+  <h3>Marlum Recommended Workflow</h3>
+  <p><strong>Accountant:</strong> prepares payroll → <strong>Financial Controller:</strong> reviews and processes payments → <strong>MD / authorized Approver:</strong> approves before final processing.</p>
+  <p class="label">Users may hold multiple roles, but payroll and payment approval should remain subject to segregation-of-duties rules.</p>
+</div>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openCreateRealUser()">+ Create User</button>
+    <button class="btn secondary" onclick="openRoleMatrix()">Role & Permission Matrix</button>
+    <button class="btn secondary" onclick="openAuditLog()">Audit Log</button>
+  </div>
+  <p class="label">"Signed In?" is the one place that shows onboarding status for EVERY account, including a plain Employee-Portal-only login — those never appear in the Audit Log's "Currently Online" panel, since that panel can only see accounts that also hold an operating role.</p>
+  <table><thead><tr><th>User</th><th>Employee</th><th>Roles</th><th>Status</th><th>Signed In?</th><th>Actions</th></tr></thead>
+  <tbody id="secRows"></tbody></table>
+</div>
+</section>
+
+
+<section id="paymentflow" class="page">
+<h2>Payroll Approval & Bank Payments</h2>
+<div class="grid">
+  <div class="card"><div class="label">Payroll Drafts</div><div class="metric" id="pfDrafts">0</div></div>
+  <div class="card"><div class="label">Awaiting Review</div><div class="metric" id="pfReview">0</div></div>
+  <div class="card"><div class="label">Awaiting MD Approval</div><div class="metric" id="pfApproval">0</div></div>
+  <div class="card"><div class="label">Ready for Payment</div><div class="metric" id="pfReady">0</div></div>
+</div>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="createPayrollPaymentBatch()">Create Payment Batch</button>
+    <button class="btn secondary" onclick="openPaymentBatches()">Payment Batches</button>
+    <button class="btn secondary" onclick="openApprovalQueue()">Approval Queue</button>
+  </div>
+  <p class="label">Workflow: Accountant prepares payroll → Financial Controller reviews → MD / authorized Approver approves → Financial Controller processes bank payment.</p>
+</div>
+<div class="card">
+  <h3>Payroll Payment Workflow</h3>
+  <table><thead><tr><th>Batch</th><th>Payroll Period</th><th>Employees</th><th>Total Net Pay</th><th>Status</th><th>Next Action</th></tr></thead>
+  <tbody id="pfRows"></tbody></table>
+</div>
+</section>
+
+
+<section id="paycycles" class="page">
+<h2>Payroll Cycles & Bank Reconciliation</h2>
+<div class="grid">
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('pcRows')" title="Go to Payroll Cycle Register"><div class="label">Weekly Casual Payrolls</div><div class="metric" id="pcWeekly">0</div></div>
+  <div class="metric-card clickable-card" onclick="scrollToCardTable('pcRows')" title="Go to Payroll Cycle Register"><div class="label">Monthly Fixed Payrolls</div><div class="metric" id="pcMonthly">0</div></div>
+  <div class="metric-card clickable-card" onclick="openReconciliation()" title="Open Bank Reconciliation"><div class="label">Pending Reconciliation</div><div class="metric" id="pcRecon">0</div></div>
+  <div class="metric-card clickable-card" onclick="openReconciliation()" title="Open Bank Reconciliation"><div class="label">Completed Payments</div><div class="metric" id="pcPaid">0</div></div>
+</div>
+<div class="card">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openNewPayrollCycle()">+ New Payroll Cycle</button>
+    <button class="btn secondary" onclick="openPayrollCycles()">Payroll Register</button>
+    <button class="btn secondary" onclick="openReconciliation()">Bank Reconciliation</button>
+    <button class="btn danger" onclick="clearAllPayrollCycles()">Clear All Payroll Cycles</button>
+  </div>
+  <p class="label"><strong>Two payroll frequencies:</strong> Casual staff are calculated on a daily rate and paid weekly. Fixed-salary staff are paid monthly.</p>
+</div>
+<div class="card">
+  <h3>Payroll Cycle Register</h3>
+  <table><thead><tr><th>Cycle</th><th>Type</th><th>Period</th><th>Employees</th><th>Total Net</th><th>Status</th><th>Action</th></tr></thead>
+  <tbody id="pcRows"></tbody></table>
+</div>
+<div class="card">
+  <h3>Bank Payments</h3>
+  <p class="label">Every bank payment batch, whichever payroll cycle it came from. Open one to go straight to that cycle's Bank payment or Confirm &amp; reconcile step.</p>
+  <table><thead><tr><th>Batch</th><th>Type</th><th>Period</th><th>Amount</th><th>Status</th><th>Failed/Returned</th><th>Action</th></tr></thead>
+  <tbody id="pcReconRows"></tbody></table>
+</div>
+</section>
+
+<section id="cycleWorkspace" class="page"></section>
+
+<section id="attendance2" class="page">
+<h2>Attendance</h2>
+<p class="label">Loading…</p>
+<div style="display:none"><span id="attCasual"></span><span id="attWeekly"></span><span id="attPending"></span><span id="attApprovedDays"></span></div>
+</section>
+
+<section id="reports" class="page">
+<h2>Payroll Reports</h2>
+<div class="grid">
+  <div class="metric-card clickable-card" onclick="openGenerateReport()" title="Generate a report"><div class="label">Gross Payroll</div><div class="metric" id="rGross">₦0</div></div>
+  <div class="metric-card clickable-card" onclick="openGenerateReport()" title="Generate a report"><div class="label">Net Payable</div><div class="metric" id="rNet">₦0</div></div>
+  <div class="metric-card clickable-card" onclick="openGenerateReport()" title="Generate a report"><div class="label">Bonuses</div><div class="metric" id="rBonus">₦0</div></div>
+  <div class="metric-card clickable-card" onclick="openGenerateReport()" title="Generate a report"><div class="label">Deductions / Loans</div><div class="metric" id="rDeductions">₦0</div></div>
+</div>
+<div class="card" style="margin-top:15px">
+  <div class="toolbar">
+    <button class="btn primary" onclick="openGenerateReport()">Generate Report</button>
+  </div>
+  <h3>Management Summary</h3><div id="reportSummary"></div>
+</div>
+</section>
+
+
+<section id="audit" class="page"><h2>Audit Log</h2>
+<div class="card">
+  <h3>Currently Online</h3>
+  <p class="label">Anyone signed in right now, refreshed automatically. A device is dropped from this list if it goes quiet for a few minutes (lost connection, closed tab) even without an explicit sign-out.</p>
+  <table><thead><tr><th>Person</th><th>Role</th><th>Device</th><th>Signed In Since</th><th>Last Seen</th></tr></thead><tbody id="onlineRows"></tbody></table>
+</div>
+<div class="card">
+  <h3>Data Changes</h3>
+  <table><thead><tr><th>Date/Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead><tbody id="auditRows"></tbody></table>
+</div>
+<div class="card">
+  <h3>Page Activity</h3>
+  <p class="label">Every page anyone opens, most recent first. Kept to the last 300 entries so this does not grow without bound.</p>
+  <table><thead><tr><th>Date/Time</th><th>User</th><th>Device</th><th>Page</th></tr></thead><tbody id="activityRows"></tbody></table>
+</div>
+</section>
+
+<section id="settings" class="page"><h2>Settings</h2><div class="card"><div class="form"><label>Company Name<input id="companyName"></label></div>
+<div class="toolbar"><button class="btn primary" onclick="saveSettings()">Save Settings</button></div>
+</div>
+<div class="card" id="employeeMasterResetCard">
+  <h3>Employee Master Data</h3>
+  <p class="label" id="employeeMasterCount"></p>
+  <p class="label">If the employee list you see doesn't match the latest master list a developer has built into the app, it's because your browser is still using data saved from an earlier session — this app remembers what you last had, on purpose, so your work isn't lost between visits. Use this if you specifically need to discard that and start from the current build's employee list instead.</p>
+  <div class="toolbar"><button class="btn secondary" onclick="reloadEmployeeMasterData()">Add Any New Employees From This Build</button></div>
+  <p class="label">This replaces the employee list only. Payroll cycles, attendance, HR records and everything else are kept exactly as they are.</p>
+</div>
+<div class="card" id="siteRenameCard">
+  <h3>Rename or Merge a Site / Department</h3>
+  <p class="label">Moves every employee currently in one department to another — use this to fix a typo, merge two names that turned out to be the same physical site, or give a department a clearer name. This updates every affected employee's record; it does not touch attendance, payroll, or loan history, which are tied to the employee, not the department name.</p>
+  <div class="form">
+    <label>From (current name, exact)<input id="siteRenameFrom" placeholder="e.g. Zone5"></label>
+    <label>To (new name)<input id="siteRenameTo" placeholder="e.g. FCT"></label>
+  </div>
+  <div class="toolbar"><button class="btn danger" onclick="renameSiteDepartment()">Apply Rename</button></div>
+</div>
+<div class="card" id="companyBankCard">
+  <h3>Company Salary Payment Account</h3>
+  <p class="label">The account salary payments are made from. Shown for reference on generated bank upload files — this does not move money by itself.</p>
+  <div class="form">
+    <label>Bank Name<input id="companyBankName" placeholder="e.g. Fidelity Bank"></label>
+    <label>Account Number<input id="companyBankAccount" placeholder="10-digit account number"></label>
+    <label>Account Name<input id="companyBankAccountName" placeholder="e.g. Marlum Nigeria Ltd"></label>
+  </div>
+  <div class="toolbar"><button class="btn primary" onclick="saveCompanyBankAccount()">Save Company Bank Account</button></div>
+</div>
+<div class="card" id="directPaymentCard">
+  <h3>Direct Bank Payment Integration <span class="badge" id="directPaymentStatusBadge">Not Connected</span></h3>
+  <p class="label">This lets the app initiate salary payments automatically instead of exporting a file for manual upload. It requires a corporate API integration with your bank and is not active yet — the fields below are ready to be filled in once that integration exists, but no payment will be sent until they are. The Client ID and Secret are kept only in this browser, on this device — they are never saved to your account or visible to anyone else, and will need to be re-entered if you set this up from a different device.</p>
+  <div class="form">
+    <label>API Base URL<input id="directPayApiUrl" placeholder="Provided by your bank's corporate API team"></label>
+    <label>Client ID (kept only in this browser)<input id="directPayClientId" placeholder="Provided by your bank"></label>
+    <label>Client Secret (kept only in this browser)<input id="directPayClientSecret" type="password" placeholder="Provided by your bank"></label>
+  </div>
+  <div class="toolbar"><button class="btn secondary" onclick="testDirectPaymentConnection()">Test Connection</button><button class="btn primary" onclick="saveDirectPaymentConfig()">Save</button></div>
+  <p class="label" id="directPaymentNote">See the "What's needed for Direct Payment" note on the Payroll Cycle page for exactly what to request from your bank before this can go live.</p>
+</div>
+</section>
+</main></div>
+<div id="modal" class="modal"><div class="modalbox" id="modalContent"></div></div>
+<script src="js/core.js"></script>
+
+<script src="js/boot-hooks.js"></script><link rel="stylesheet" href="css/v18-layer.css">
+<script src="js/v18-features.js"></script>
+<script src="js/supabase-bridge.js"></script>
+<link rel="stylesheet" href="css/v19-layer.css">
+<script src="js/v19-attendance-timesheet.js"></script>
+<link rel="stylesheet" href="css/v191-layer.css">
+<script src="js/v191-enhancements.js"></script>
+<link rel="stylesheet" href="css/v20-layer.css">
+<script src="js/workflow-and-roles.js"></script>
+
+<link rel="stylesheet" href="css/v21-layer.css">
+<script src="js/employee-portal-scoping.js"></script>
+
+<script src="js/reliable-signout.js"></script>
+<script src="js/v24-misc.js"></script>
+
+<link rel="stylesheet" href="css/v25-login-polish.css">
+<script src="js/login-structure.js"></script>
+
+<script src="js/cycle-integration.js"></script>
+
+
+
+<link rel="stylesheet" href="css/v29-password-toggle.css">
+
+<link rel="stylesheet" href="css/ui-final.css">
+
+<script src="js/auth-polish.js"></script>
+
+<script src="js/misc-a.js"></script>
+
+<script src="js/misc-b.js"></script>
+
+<script src="js/cycle-workspace.js"></script>
+
+<script src="js/activity-tracking.js"></script>
+
+
+<div id="hBar" class="hbar" hidden role="scrollbar" aria-orientation="horizontal" aria-label="Scroll sideways">
+  <div class="hbar-track"><div class="hbar-thumb"></div></div>
+</div>
+<link rel="stylesheet" href="css/late-overrides.css">
+<script src="js/late-hooks.js"></script>
+</body></html>

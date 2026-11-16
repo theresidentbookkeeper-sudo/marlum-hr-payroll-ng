@@ -1,0 +1,55 @@
+
+header{min-height:52px;padding:10px 18px;justify-content:flex-end;gap:18px;flex-wrap:wrap;row-gap:6px}
+/* The sign-out button (inside #marlumAuthBox) must never be able to overflow off-screen and become
+   unreachable — this was reported as "missing" on a real desktop screen even after an earlier fix
+   that only added this same safety net to the ≤650px mobile rule. Any viewport width narrower than
+   the combined width of the brand name + date + clock + sync badge now wraps the auth box onto its
+   own line instead of pushing it past the edge of the screen. */
+#marlumAuthBox{flex-shrink:0}
+header #today{font-weight:700;color:#29453a;font-size:13px}.device-clock{font-size:12px;color:#496057}
+.side-toggle,.mobile-menu,.nav-hamburger{display:none!important}
+#mainNav{background:#fbfdfc;border-right:1px solid #dfe8e2}
+#mainNav .nav-top{display:none!important}
+#mainNav .nav-item,#mainNav .nav-group-btn{background:#eef4f0!important;border:1px solid #d7e3dc!important;color:#30483d!important;border-radius:9px!important;margin:4px 0!important;padding:11px 12px!important;font-weight:700!important;box-shadow:none!important}
+#mainNav .nav-item:hover,#mainNav .nav-item.active,#mainNav .nav-group-btn:hover,#mainNav .nav-group.active-group>.nav-group-btn{background:#dbe9e1!important;color:#254c3d!important;border-color:#b9d1c3!important}
+#mainNav .nav-submenu{padding:3px 0 5px 10px}.v191-inbox{margin-top:15px}
+.v191-request-card{border:1px solid #dce7e0;background:#fbfdfc;border-radius:10px;padding:12px;margin:8px 0}
+.v191-request-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.v191-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.v191-pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e5f0ea;color:#3f735b;font-size:11px;font-weight:700}
+.v191-pill.pending{background:#fbf0dd;color:#9a6b32}.v191-pill.rejected{background:#f8e3e0;color:#9d514b}
+.v191-section{margin-top:15px}.v191-upload{padding:9px;border:1px dashed #b9cfc2;border-radius:8px;background:#f8fbf9}
+.v191-muted{font-size:11px;color:#6f7973}
+@media(max-width:900px){#mainNav{width:210px;min-width:210px}}
+@media(max-width:650px){
+  header{justify-content:flex-start;flex-wrap:wrap;padding:9px 12px;gap:8px 10px;position:sticky;top:0;z-index:1100;min-height:52px}
+  /* The sign-out button must always be reachable without horizontal scrolling — on a real phone
+     width, the brand name + date + clock + sync badge already exceed the screen before even
+     reaching it, silently pushing it off-screen. flex-wrap above is the safety net (nothing can
+     ever be fully unreachable again), and margin-left:auto plus the trimmed/hidden text below
+     keep it on the first line in the common case instead of relying on the wrap. */
+  #marlumAuthBox{margin-left:auto;flex-shrink:0}
+  .device-clock .clock-suffix{display:none}
+  #marlumHeaderBrand{font-size:13px}
+  header #today{display:none}
+  #syncStatus{order:99;flex-basis:100%;margin-left:0!important}
+  .layout{display:block;min-height:calc(100vh - 52px)}
+  main{padding:15px;min-width:0;overflow-x:hidden}
+  #mainNav{position:fixed;top:0;left:-290px;width:270px;min-width:270px;height:100vh;z-index:1200;display:block;overflow-y:auto;overflow-x:hidden;padding:58px 12px 18px;box-shadow:6px 0 24px rgba(0,0,0,.16);transition:left .22s ease}
+  #mainNav.open{left:0}
+  #mainNav .nav-top{display:block!important;position:absolute;top:10px;left:12px;right:12px}
+  #mainNav .nav-top .nav-hamburger{display:none!important}
+  #mainNav .nav-item,#mainNav .nav-group-btn{width:100%;font-size:13px}
+  .mobile-menu{display:flex!important;align-items:center;justify-content:center;width:42px;height:42px;flex:0 0 42px;border:1px solid #d7e3dc;border-radius:9px;background:#fbfdfc;color:#30483d;font-size:23px;line-height:1;cursor:pointer;z-index:1300}
+  .mobile-menu:focus{outline:2px solid #789889;outline-offset:2px}
+  .mobile-nav-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:1150;opacity:0;pointer-events:none;transition:opacity .22s ease}
+  body.mobile-nav-open .mobile-nav-backdrop{opacity:1;pointer-events:auto}
+  body.mobile-nav-open{overflow:hidden}
+  .toolbar{gap:7px}
+  .toolbar input{min-width:0!important;max-width:100%!important;width:100%!important}
+  table{display:block;overflow-x:auto;white-space:nowrap;max-width:100%;font-size:11px}
+  th,td{padding:7px 8px}
+  .modalbox{width:min(800px,calc(100vw - 24px));padding:14px}
+  .form{grid-template-columns:1fr!important}
+  .card{padding:12px}
+  .metric{font-size:20px}
+}
